@@ -66,6 +66,13 @@ data class Lesson(
     val source: String,
 )
 
+/** Reader audio manifest (tools/generate_audio.py): lookup key -> clip filename under files/audio/. */
+@Serializable
+data class AudioManifest(
+    val words: Map<String, String> = emptyMap(),  // Norm.skey(token text) -> filename
+    val lines: Map<String, String> = emptyMap(),  // phrase id -> filename
+)
+
 @Serializable
 data class Session(
     val n: Int,

@@ -21,12 +21,15 @@ import kotlinx.coroutines.launch
 
 private suspend fun loadAssets(): Pair<CourseData, String> {
     suspend fun read(name: String) = Res.readBytes("files/$name.json").decodeToString()
-    val course = DataLoader.load(read("lexicon"), read("forms"), read("phrases"), read("lessons"), read("curriculum"))
+    val course = DataLoader.load(
+        read("lexicon"), read("forms"), read("phrases"), read("lessons"), read("curriculum"),
+        audio = read("audio"),
+    )
     return course to read("meta")
 }
 
 @Composable
-fun App(driver: SqlDriver, nowMs: () -> Long) {
+fun App(driver: SqlDriver, nowMs: () -> Long, audioPlayer: AudioPlayer) {
     MaterialTheme {
         Surface(Modifier.fillMaxSize()) {
             var model by remember { mutableStateOf<AppModel?>(null) }
@@ -35,7 +38,7 @@ fun App(driver: SqlDriver, nowMs: () -> Long) {
                 try {
                     val (course, meta) = loadAssets()
                     val store = SqlReviewStore(driver)
-                    val m = AppModel(course, StudyEngine(course, store, nowMs = nowMs), store, DataLoader.about(meta))
+                    val m = AppModel(course, StudyEngine(course, store, nowMs = nowMs), store, DataLoader.about(meta), audioPlayer)
                     m.refresh()
                     model = m
                 } catch (t: Throwable) {
@@ -63,7 +66,7 @@ private fun Root(m: AppModel) {
                 Screen.Home -> HomeScreen(m) { scope.launch { m.start() } }
                 Screen.Study -> StudyScreen(m)
                 Screen.Done -> DoneScreen(m)
-                Screen.Reader -> ReaderScreen(m.course)
+                Screen.Reader -> ReaderScreen(m.course, m.audioPlayer)
                 Screen.About -> AboutScreen(m.aboutText)
             }
         }
@@ -106,7 +109,7 @@ private fun StudyScreen(m: AppModel) {
                 is SessionStep.Review -> ReviewView(step) { r -> scope.launch { m.rate(step.lemma.id, r); m.next() } }
                 is SessionStep.LessonStep -> LessonView(step, m.course, next)
                 is SessionStep.Intro -> IntroView(step, m.course, next)
-                is SessionStep.Reading -> ReadingView(step, m.course, next)
+                is SessionStep.Reading -> ReadingView(step, m.course, m.audioPlayer, next)
                 is SessionStep.Choice -> ChoiceView(step.exercise, next)
                 is SessionStep.Typed -> TypedView(step, m.checker, next)
             }
@@ -166,17 +169,25 @@ private fun ColumnScope.IntroView(s: SessionStep.Intro, course: CourseData, onNe
 }
 
 @Composable
-private fun ColumnScope.ReadingView(s: SessionStep.Reading, course: CourseData, onNext: () -> Unit) {
+private fun ColumnScope.ReadingView(s: SessionStep.Reading, course: CourseData, audioPlayer: AudioPlayer, onNext: () -> Unit) {
     Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Reading — tap a word", style = MaterialTheme.typography.headlineSmall)
-        s.phrases.forEach { PhraseView(it, course) }
+        s.phrases.forEach { PhraseView(it, course, audioPlayer) }
     }
     Button(onNext) { Text("Continue") }
 }
 
+/** Reads a generated clip from resources and plays it; absent for content item 7 hasn't covered. */
+@Composable
+private fun PlayButton(audioPlayer: AudioPlayer, filename: String?, label: String) {
+    if (filename == null) return
+    val scope = rememberCoroutineScope()
+    TextButton({ scope.launch { audioPlayer.play(Res.readBytes("files/audio/$filename")) } }) { Text("▶ $label") }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PhraseView(p: Phrase, course: CourseData) {
+private fun PhraseView(p: Phrase, course: CourseData, audioPlayer: AudioPlayer) {
     var sel by remember(p.id) { mutableStateOf<Token?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -190,13 +201,14 @@ private fun PhraseView(p: Phrase, course: CourseData) {
             }
         }
         Text("“${p.gloss}”", style = MaterialTheme.typography.bodyMedium)
-        sel?.let { TokenDetail(it, course) }
+        PlayButton(audioPlayer, course.audioForLine(p.id), "Play line")
+        sel?.let { TokenDetail(it, course, audioPlayer) }
         p.note?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
     }
 }
 
 @Composable
-private fun TokenDetail(t: Token, course: CourseData) {
+private fun TokenDetail(t: Token, course: CourseData, audioPlayer: AudioPlayer) {
     val e = t.lemma?.let { course.lex[it] }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -213,6 +225,7 @@ private fun TokenDetail(t: Token, course: CourseData) {
                 }
                 Text("$how · ${e.confidence}" + (e.mark?.let { " · Eldamo mark $it" } ?: ""), style = MaterialTheme.typography.labelSmall)
             }
+            PlayButton(audioPlayer, course.audioForWord(t.text), "Play word")
         }
     }
 }
@@ -272,11 +285,11 @@ private fun DoneScreen(m: AppModel) {
 }
 
 @Composable
-private fun ReaderScreen(course: CourseData) {
+private fun ReaderScreen(course: CourseData, audioPlayer: AudioPlayer) {
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { Text("Reader", style = MaterialTheme.typography.headlineMedium) }
         item { Text("Tap a word for its lemma, gloss and form. Lines come from Eldamo's phrase entries.", style = MaterialTheme.typography.bodySmall) }
-        items(course.phrases, key = { it.id }) { PhraseView(it, course) }
+        items(course.phrases, key = { it.id }) { PhraseView(it, course, audioPlayer) }
     }
 }
 

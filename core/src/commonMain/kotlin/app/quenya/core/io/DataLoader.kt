@@ -10,12 +10,16 @@ import kotlinx.serialization.json.jsonPrimitive
 object DataLoader {
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun load(lexicon: String, forms: String, phrases: String, lessons: String, curriculum: String) = CourseData(
+    fun load(
+        lexicon: String, forms: String, phrases: String, lessons: String, curriculum: String,
+        audio: String? = null,
+    ) = CourseData(
         lexicon = json.decodeFromString(ListSerializer(LexiconEntry.serializer()), lexicon),
         forms = json.decodeFromString(ListSerializer(FormEntry.serializer()), forms),
         phrases = json.decodeFromString(ListSerializer(Phrase.serializer()), phrases),
         lessons = json.decodeFromString(ListSerializer(Lesson.serializer()), lessons),
         curriculum = json.decodeFromString(ListSerializer(Session.serializer()), curriculum),
+        audio = audio?.let { json.decodeFromString(AudioManifest.serializer(), it) } ?: AudioManifest(),
     )
 
     /** Attribution text for the About screen, from meta.json. */

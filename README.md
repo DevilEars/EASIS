@@ -23,13 +23,14 @@ Tolkien's texts remain under copyright: this is a personal-use build.
 | `core/.../io/DataLoader.kt` (kotlinx.serialization) | Compiles against real Gradle build now |
 | `composeApp/`, `androidApp/`, Gradle files, SQLDelight schema | **Builds.** `gradle :androidApp:assembleDebug` succeeds; debug APK installs. Versions in `gradle/libs.versions.toml` are confirmed working (Kotlin 2.4.10 / AGP 9.1.0 / Compose 1.12.1 / SQLDelight 2.3.2) |
 | iOS target (`compileKotlinIosSimulatorArm64`) | **Compiles.** No Xcode wrapper project yet (see `BACKLOG.md` item 10) |
+| Reader audio (`tools/generate_audio.py`, tap-to-play) | **Generated and builds.** 123 synthesized AAC clips (~520 KiB) for every phrase/word in `phrases.json`. Decoded clips, not naturalness, verified so far — give one a listen |
 | CI | Not yet run on a real machine |
 
 ## Layout
 
 ```
 tools/            build_data.py  skeleton.json  eldamo_report.py  fsrs_reference.py
-                  make_kotlin_fixtures.py  run_core_tests.sh
+                  make_kotlin_fixtures.py  run_core_tests.sh  quenya_phonetics.py  generate_audio.py
 core/             pure logic (commonMain) + tests (commonTest, run on real data)
 composeApp/       Compose UI, SQLDelight store, generated JSON in composeResources/files/
 androidApp/       Android application module (AGP 9 needs the app separate from KMP code)
@@ -38,11 +39,16 @@ androidApp/       Android application module (AGP 9 needs the app separate from 
 ## Regenerate the data
 
 ```bash
-curl -L -o eldamo-data.xml https://raw.githubusercontent.com/pfstrack/eldamo/master/src/data/eldamo-data.xml
-python tools/build_data.py eldamo-data.xml          # writes composeApp/.../composeResources/files/*.json
+curl -L -o tools/eldamo-data.xml https://raw.githubusercontent.com/pfstrack/eldamo/master/src/data/eldamo-data.xml
+python tools/build_data.py tools/eldamo-data.xml    # writes composeApp/.../composeResources/files/*.json
 python tools/make_kotlin_fixtures.py                # refresh the test fixtures from the new data
+python tools/generate_audio.py                      # synthesizes Reader audio clips (needs espeak-ng, ffmpeg)
 ```
-`tools/skeleton.json` is the only hand-edited input. It holds topic order and pacing, never lesson content.
+`espeak-ng` and `ffmpeg` (`brew install espeak-ng ffmpeg` on macOS) are only needed for the audio step —
+everything else is pure Python. `tools/skeleton.json` is the only hand-edited input besides the Quenya
+phoneme/stress rules in `tools/quenya_phonetics.py` (Appendix E conventions; Eldamo's own phonetic data
+turned out to be historical sound-change records, not a synchronic pronunciation table — see BACKLOG
+item 7). Neither holds lesson content.
 The script prints the milestone sessions and exits non-zero if any invariant fails.
 Current output: 49 sessions; milestones at session 13 (*Elen síla*), 18 (*Aiya Eärendil*),
 **35 (*Markirya*, 12 lines)** and 49 (whole poem, stretch).

@@ -13,6 +13,7 @@ class AppModel(
     private val engine: StudyEngine,
     private val store: ReviewStore,
     val aboutText: String,
+    val audioPlayer: AudioPlayer,
 ) {
     val checker = Checker(course)
     var screen by mutableStateOf(Screen.Home); private set

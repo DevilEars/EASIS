@@ -60,7 +60,7 @@ Only 727 late-Quenya words have attested inflected forms, and some features have
 (1st-pl-inclusive possessive: 2). Add a paradigm engine that derives missing forms, tagged
 `reconstructed`, and drop any exercise it cannot derive reliably.
 
-## 7. Generated audio in the Reader  *(requested)* — spiked, building now
+## 7. Generated audio in the Reader  *(requested)* — built
 Tap-to-play pronunciation for Reader phrases and words. Doesn't touch session/curriculum math, so it
 ranks low on "changes the plan" — but it's its own item because of the data-pipeline work involved.
 
@@ -83,21 +83,37 @@ Spike findings (both halves checked before committing to the build):
   explicitly per word, not left to eSpeak to guess. Opus encoding tooling (`ffmpeg`/`opusenc`) isn't
   installed yet but is a standard, low-risk step, not spiked further.
 
-Build plan:
-- Generate at build time, like everything else (`tools/build_data.py`), not with an on-device
-  synthesis engine — scope to curriculum content only (lesson examples, *Markirya* lines), not the
-  full lexicon. That scoping plus a synthesized (not recorded) voice is where the space saving
-  comes from.
-- New `tools/quenya_phonetics.py`: spelling → eSpeak phoneme string, including explicit stress
-  placement (Quenya's rule: penultimate if heavy/long, else antepenultimate, never final).
-- `tools/generate_audio.py` (or a step in `build_data.py`) shells out to `espeak-ng`, encodes to
-  low-bitrate Opus, writes clips + a manifest (`audio.json`, id → clip) into
-  `composeResources/files/audio/`, parsed by `DataLoader` like the other JSON.
-- UI: a play button in `PhraseView` and `TokenDetail` (`App.kt`), backed by a thin KMP
-  `expect/actual` player (Android `MediaPlayer` / iOS `AVAudioPlayer`).
+Implementation:
+- `tools/quenya_phonetics.py`: Quenya spelling → eSpeak phoneme string with explicit stress
+  (penultimate if heavy/long, else antepenultimate, never final). Validated against known-correct
+  stress in *Eärendil* (-REN-), *andúnë* (-DÚ-) and *ancalima* (-CA-) before trusting it on the real
+  84-word Reader vocabulary. That full-corpus run caught two real bugs a small hand-picked test set
+  would have missed: `x` (= /ks/ in Quenya) wasn't in the consonant table and was silently dropped
+  (`axor` → `aor`), and `ry` was wrongly treated as one palatalized digraph like `ty`/`hy`/`ny`/`ly` —
+  it isn't; Appendix E doesn't list it, and *cirya* is `cir-ya`, not a palatal r. Both fixed; the
+  corpus now round-trips with zero errors (an unrecognised letter now raises loudly, not skips).
+- **Opus → AAC, a correction to the original plan.** Android's `MediaPlayer` decodes Opus natively
+  (API 21+), but iOS's `AVAudioPlayer` does not support raw/Ogg Opus without a `.caf` repackage or a
+  third-party decoder. Switched to AAC/`.m4a`, which both platforms play natively with zero extra
+  libraries. Cost is small given the content is already tiny: 123 clips (84 words + 39 lines) at
+  519 KiB total, vs. 333 KiB the one time it was tried with Opus.
+- `tools/generate_audio.py`: espeak-ng → ffmpeg(AAC) per clip, manifest `audio.json` (`words`/`lines`,
+  keyed by the same `skey()` used elsewhere) into `composeResources/files/audio/`.
+- Kotlin: `AudioManifest` model + `DataLoader`/`CourseData.audioForWord`/`audioForLine`; `AudioPlayer`
+  interface in `composeApp` commonMain with `AndroidAudioPlayer` (writes to a cache file, `MediaPlayer`)
+  and `IosAudioPlayer` (`NSData.create` + `AVAudioPlayer`, copies the bytes so it outlives `memScoped`).
+  Constructed once per platform entry point (`MainActivity.kt`, `IosEntry.kt`) and threaded through
+  `AppModel`, same pattern as the SQLDelight driver.
+  UI: a "▶ Play line" button on `PhraseView` and a "▶ Play word" button on `TokenDetail`, both reading
+  the clip via `Res.readBytes` and only showing when a clip exists for that text.
+- Verified mechanically: `core:jvmTest`, `androidApp:assembleDebug`, and
+  `composeApp:compileKotlinIosSimulatorArm64` all pass; generated clips decode and play via `afplay`.
+  **Not verified: how natural any of it sounds** — that needs an actual listen, which I can't do.
 - Inherited item 5's gaps, now mostly moot: the core-12 milestone has zero unresolved/ambiguous
   tokens as of item 5's fix, so audio for that content has clean lemma data to work from. Only
   `ondolissë`/`mornë` (line 32, stretch-only) still can't be transcribed, same as item 5 left it.
+- Follow-ups, not done here: consonant gemination (`ll`, `nn`, …) is simplified rather than modeled
+  as true length; not yet installed/played on a real device or simulator, only desktop `afplay`.
 
 ## 8. Data editing on the phone
 Export / import one bundle file through the system file picker, so lexicon edits need no rebuild.

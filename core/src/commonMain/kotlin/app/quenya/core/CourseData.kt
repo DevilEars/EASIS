@@ -7,6 +7,7 @@ class CourseData(
     val phrases: List<Phrase>,
     val lessons: List<Lesson>,
     val curriculum: List<Session>,
+    val audio: AudioManifest = AudioManifest(),
 ) {
     val lex: Map<String, LexiconEntry> = lexicon.associateBy { it.id }
     val phraseById: Map<String, Phrase> = phrases.associateBy { it.id }
@@ -21,4 +22,10 @@ class CourseData(
         for (p in phrases) for (t in p.tokens) if (t.lemma == lemmaId) return p to t
         return null
     }
+
+    /** Audio clip filename (under files/audio/) for a word's exact surface text, if generated. */
+    fun audioForWord(text: String): String? = audio.words[Norm.skey(text)]
+
+    /** Audio clip filename for a whole Reader phrase/line, if generated. */
+    fun audioForLine(phraseId: String): String? = audio.lines[phraseId]
 }
