@@ -38,11 +38,22 @@ simulator, and add the iOS Xcode wrapper (item 10) so the iOS target can launch.
 Words carry a raw `mark` (`#`, `†`, `-`, `|`, `*`, `^`). The app shows them unchanged and does not
 interpret them. Read Eldamo's key, then map them onto `attested` / `reconstructed` / `neologism`.
 
-## 5. Unresolved and heuristic tokens
-Eldamo has no token analysis for 8 of the 37 *Markirya* lines, so those tokens are matched by strict
-lookup (`resolution` field). 4 tokens stay unresolved (`ëar-celumessen`, `talta-taltala`,
-`ondolissë`, `mornë`); `cirya` is ambiguous between homonyms. Options: split hyphenated compounds,
-add an override file, or read Eldamo's phrase notes ("Decomposition").
+## 5. Unresolved and heuristic tokens — mostly done
+Was 4 unresolved + 3 ambiguous. Two different fixes in `tools/build_data.py`:
+- `split_tokens` now also splits on internal hyphens, so a hyphenated compound Eldamo tags as two
+  `<element>`s (e.g. `ëar-celumessen` = `ëar` + `celumë` locative-plural, line 8 — inside the core
+  12-line milestone) lines up position-for-position instead of being discarded as a whole-string
+  lookup miss. Fixed `ëar-celumessen` (line 8) and, as a side effect, `talta-taltala`'s reduplicated
+  `talta-`/`talta-` element pair (line 29, stretch-only).
+- `resolve_token`'s homonym tie-break now checks attestation dominance (≥5×), not just uniqueness:
+  `cirya¹` "ship" (55 attestations) vs. `cirya²` "cleft, pass" (1) is a confident pick, not a guess.
+  Fixed all 3 `cirya` occurrences (lines 1, 6, 31 — two of them core).
+
+Remaining: `ondolissë mornë` (line 32, stretch-only). Eldamo gives **zero** `<element>` analysis for
+this line — no structural fix applies; needs a hand-authored override (`ondo` + partitive-plural +
+locative, `morna` + plural, per the line's prose "Decomposition" note) if the full poem is ever
+taught. Low priority: outside the core-12 milestone, two words, already have a `guess` field in the
+UI. The core milestone (session 35) itself is now fully resolved, zero ambiguous.
 
 ## 6. Rule-derived forms
 Only 727 late-Quenya words have attested inflected forms, and some features have tiny pools

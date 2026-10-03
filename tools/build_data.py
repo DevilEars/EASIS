@@ -137,10 +137,20 @@ def build_indexes(words, lex, forms):
     return surf, lemk, loose
 
 def split_tokens(text):
+    """Whitespace tokens, each split further on internal hyphens: Eldamo sometimes
+    tags the two halves of a hyphenated compound (e.g. "ëar-celumessen") as separate
+    <element>s, and splitting here lets build_phrase's position-based alignment see
+    them as two tokens instead of one, so each half gets its own lemma/gloss."""
     out = []
     for raw in text.split():
         m = re.match(r"^(.*?)([?.,;:!]*)$", raw)
-        out.append((m.group(1), m.group(2)))
+        word, punct = m.group(1), m.group(2)
+        parts = word.split("-")
+        if len(parts) > 1 and all(parts):
+            out += [(p, "-") for p in parts[:-1]]
+            out.append((parts[-1], punct))
+        else:
+            out.append((word, punct))
     return out
 
 def resolve_token(tok, idx, lex):
@@ -150,8 +160,13 @@ def resolve_token(tok, idx, lex):
     k = skey(tok)
     ids = lemk.get(k, [])
     if ids:                                   # 1. the token IS a lemma
-        best = max(ids, key=lambda i: lex[i]["attestations"])
-        return best, [], "lexicon" + ("" if len(ids) == 1 else "-ambiguous"), None
+        ranked = sorted(ids, key=lambda i: -lex[i]["attestations"])
+        best = ranked[0]
+        # Homonyms (Eldamo's superscripted lemmas) aren't really ambiguous if one
+        # is attested far more often than the rest, e.g. cirya¹ "ship" (55) vs.
+        # cirya² "cleft, pass" (1) — don't flag that as a guess to the learner.
+        dominant = len(ranked) == 1 or lex[best]["attestations"] >= 5 * max(1, lex[ranked[1]]["attestations"])
+        return best, [], "lexicon" if dominant else "lexicon-ambiguous", None
     uniq = sorted(set(surf.get(k, [])))
     if uniq:                                  # 2. the token is an attested inflected form
         best = max(uniq, key=lambda c: lex[c[0]]["attestations"])
