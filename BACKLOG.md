@@ -60,22 +60,44 @@ Only 727 late-Quenya words have attested inflected forms, and some features have
 (1st-pl-inclusive possessive: 2). Add a paradigm engine that derives missing forms, tagged
 `reconstructed`, and drop any exercise it cannot derive reliably.
 
-## 7. Generated audio in the Reader  *(requested)*
+## 7. Generated audio in the Reader  *(requested)* — spiked, building now
 Tap-to-play pronunciation for Reader phrases and words. Doesn't touch session/curriculum math, so it
 ranks low on "changes the plan" — but it's its own item because of the data-pipeline work involved.
-- Generate at build time, like everything else (`tools/build_data.py`), not with an on-device synthesis
-  engine — scope to curriculum content only (lesson examples, *Markirya* lines), not the full lexicon.
-  That scoping plus a synthesized (not recorded) voice is where the space saving comes from.
-- Before writing an IPA ruleset from Appendix E by hand: `tools/build_data.py:22-23` currently excludes
-  Eldamo POS categories `phoneme`, `phonetic-group`, `phonetic-rule`, `phonetics` — check whether Eldamo
-  already encodes the sound rules needed, instead of re-deriving them.
-- Feed the ruleset to a small rule-based synthesizer (e.g. eSpeak NG) offline, encode low-bitrate Opus,
-  write clips + a manifest (`audio.json`, id → clip) into `composeResources/files/audio/`, parsed by
-  `DataLoader` like the other JSON.
-- UI: a play button in `PhraseView` and `TokenDetail` (`App.kt`), backed by a thin KMP `expect/actual`
-  player (Android `MediaPlayer` / iOS `AVAudioPlayer`).
-- Inherits item 5's gaps: tokens with no resolved lemma can't be transcribed, so they can't get audio
-  either, until that's fixed.
+
+Spike findings (both halves checked before committing to the build):
+- **Eldamo's phonetic data is not a usable shortcut.** `phoneme` (810 entries), `phonetic-group`
+  (266), `phonetic-rule` (878) — the categories `build_data.py:22-23` excludes — turned out to be
+  Eldamo's historical/etymological apparatus: proto-sound changes across the whole Eldarin family
+  over millennia (e.g. `[ɣ] became [h] after voiceless consonants`), not a synchronic "how is
+  written Quenya pronounced" table. The one entry that might have held that, Quenya's own
+  `phonetics` essay (`speech=phonetics`, `l=q`), is an empty stub — citation refs, no text.
+  **Conclusion: the spelling→phoneme/stress ruleset has to be hand-derived from Appendix E**, same
+  status as `skeleton.json` — the one legitimately hand-authored input in an otherwise generated
+  pipeline, not mined from Eldamo.
+- **eSpeak NG works for this.** Installed (`brew install espeak-ng`, 1.52.0, 26MB) and confirmed it
+  accepts raw phoneme input directly (`espeak-ng -x "[[k'i:rja]]" -w out.wav`), so it doesn't need to
+  "support Quenya" as a language — it's driven purely as a phoneme-to-waveform engine, with every
+  transcription rule supplied by us. Produced a real ~32KB WAV for *cirya* ("ship"). Confirmed
+  explicit control over stress placement via eSpeak's `'` marker, which matters because Quenya
+  stress (never on the final syllable) differs from eSpeak's own default heuristic — must be applied
+  explicitly per word, not left to eSpeak to guess. Opus encoding tooling (`ffmpeg`/`opusenc`) isn't
+  installed yet but is a standard, low-risk step, not spiked further.
+
+Build plan:
+- Generate at build time, like everything else (`tools/build_data.py`), not with an on-device
+  synthesis engine — scope to curriculum content only (lesson examples, *Markirya* lines), not the
+  full lexicon. That scoping plus a synthesized (not recorded) voice is where the space saving
+  comes from.
+- New `tools/quenya_phonetics.py`: spelling → eSpeak phoneme string, including explicit stress
+  placement (Quenya's rule: penultimate if heavy/long, else antepenultimate, never final).
+- `tools/generate_audio.py` (or a step in `build_data.py`) shells out to `espeak-ng`, encodes to
+  low-bitrate Opus, writes clips + a manifest (`audio.json`, id → clip) into
+  `composeResources/files/audio/`, parsed by `DataLoader` like the other JSON.
+- UI: a play button in `PhraseView` and `TokenDetail` (`App.kt`), backed by a thin KMP
+  `expect/actual` player (Android `MediaPlayer` / iOS `AVAudioPlayer`).
+- Inherited item 5's gaps, now mostly moot: the core-12 milestone has zero unresolved/ambiguous
+  tokens as of item 5's fix, so audio for that content has clean lemma data to work from. Only
+  `ondolissë`/`mornë` (line 32, stretch-only) still can't be transcribed, same as item 5 left it.
 
 ## 8. Data editing on the phone
 Export / import one bundle file through the system file picker, so lexicon edits need no rebuild.
