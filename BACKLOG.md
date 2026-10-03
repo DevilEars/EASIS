@@ -108,7 +108,12 @@ Implementation:
   the clip via `Res.readBytes` and only showing when a clip exists for that text.
 - Verified mechanically: `core:jvmTest`, `androidApp:assembleDebug`, and
   `composeApp:compileKotlinIosSimulatorArm64` all pass; generated clips decode and play via `afplay`.
-  **Not verified: how natural any of it sounds** — that needs an actual listen, which I can't do.
+  Confirmed on-device (emulator) by the user: plays correctly, sounds like classic eSpeak formant
+  synthesis ("Microsoft Sam"-ish) — expected for a phoneme-driven synthesizer, not a defect. The one
+  bug found during device testing was environmental, not code: a long-running emulator session had a
+  stuck audio backend producing total silence with zero app-level errors; a plain relaunch fixed it.
+  Confirmed by pulling the exact clip file the app wrote to its cache dir mid-session and replaying it
+  independently — valid audio throughout, so the Kotlin pipeline was never the problem.
 - Inherited item 5's gaps, now mostly moot: the core-12 milestone has zero unresolved/ambiguous
   tokens as of item 5's fix, so audio for that content has clean lemma data to work from. Only
   `ondolissë`/`mornë` (line 32, stretch-only) still can't be transcribed, same as item 5 left it.

@@ -23,7 +23,7 @@ Tolkien's texts remain under copyright: this is a personal-use build.
 | `core/.../io/DataLoader.kt` (kotlinx.serialization) | Compiles against real Gradle build now |
 | `composeApp/`, `androidApp/`, Gradle files, SQLDelight schema | **Builds.** `gradle :androidApp:assembleDebug` succeeds; debug APK installs. Versions in `gradle/libs.versions.toml` are confirmed working (Kotlin 2.4.10 / AGP 9.1.0 / Compose 1.12.1 / SQLDelight 2.3.2) |
 | iOS target (`compileKotlinIosSimulatorArm64`) | **Compiles.** No Xcode wrapper project yet (see `BACKLOG.md` item 10) |
-| Reader audio (`tools/generate_audio.py`, tap-to-play) | **Generated and builds.** 123 synthesized AAC clips (~520 KiB) for every phrase/word in `phrases.json`. Decoded clips, not naturalness, verified so far — give one a listen |
+| Reader audio (`tools/generate_audio.py`, tap-to-play) | **Works, confirmed on-device.** 123 synthesized AAC clips (~520 KiB) for every phrase/word in `phrases.json`. Sounds like classic robotic formant synthesis (eSpeak NG, not a neural voice) — expected given the generated/small-footprint design, not a bug |
 | CI | Not yet run on a real machine |
 
 ## Layout
