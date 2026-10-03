@@ -35,18 +35,35 @@ Only 727 late-Quenya words have attested inflected forms, and some features have
 (1st-pl-inclusive possessive: 2). Add a paradigm engine that derives missing forms, tagged
 `reconstructed`, and drop any exercise it cannot derive reliably.
 
-## 7. Data editing on the phone
+## 7. Generated audio in the Reader  *(requested)*
+Tap-to-play pronunciation for Reader phrases and words. Doesn't touch session/curriculum math, so it
+ranks low on "changes the plan" — but it's its own item because of the data-pipeline work involved.
+- Generate at build time, like everything else (`tools/build_data.py`), not with an on-device synthesis
+  engine — scope to curriculum content only (lesson examples, *Markirya* lines), not the full lexicon.
+  That scoping plus a synthesized (not recorded) voice is where the space saving comes from.
+- Before writing an IPA ruleset from Appendix E by hand: `tools/build_data.py:22-23` currently excludes
+  Eldamo POS categories `phoneme`, `phonetic-group`, `phonetic-rule`, `phonetics` — check whether Eldamo
+  already encodes the sound rules needed, instead of re-deriving them.
+- Feed the ruleset to a small rule-based synthesizer (e.g. eSpeak NG) offline, encode low-bitrate Opus,
+  write clips + a manifest (`audio.json`, id → clip) into `composeResources/files/audio/`, parsed by
+  `DataLoader` like the other JSON.
+- UI: a play button in `PhraseView` and `TokenDetail` (`App.kt`), backed by a thin KMP `expect/actual`
+  player (Android `MediaPlayer` / iOS `AVAudioPlayer`).
+- Inherits item 5's gaps: tokens with no resolved lemma can't be transcribed, so they can't get audio
+  either, until that's fixed.
+
+## 8. Data editing on the phone
 Export / import one bundle file through the system file picker, so lexicon edits need no rebuild.
 
-## 8. Other periods and neo-Elvish
+## 9. Other periods and neo-Elvish
 Eldamo also has middle/early Quenya (`mq`, `eq`) and a neo-Quenya layer (`nq`). Add them as labelled
 layers (`neologism`) once the core course works.
 
-## 9. Afrikaans glosses
+## 10. Afrikaans glosses
 Eldamo ships English, Russian and Polish glosses only. `gloss` is already `{ "en": … }`. A machine
 translation pass could add `af`, tagged as machine-translated and reviewable in a file.
 
-## 10. Smaller items
+## 11. Smaller items
 - iOS: add the Xcode wrapper project that calls `MainViewController()`.
 - Read the "Decomposition" notes of phrase entries to improve token analysis.
 - Lesson summaries: spot-check all 18 for sentences cut at a colon (e.g. genitive).
