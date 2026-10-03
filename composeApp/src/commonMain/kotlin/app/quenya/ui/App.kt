@@ -80,7 +80,8 @@ private fun Root(m: AppModel) {
 @Composable
 private fun HomeScreen(m: AppModel, onStart: () -> Unit) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Quenya", style = MaterialTheme.typography.headlineLarge)
+        Text("Eäsis", style = MaterialTheme.typography.headlineLarge)
+        Text("Quenya self-study app", style = MaterialTheme.typography.titleSmall)
         val s = m.nextSession
         if (s == null) Text("Course complete.")
         else {

@@ -1,6 +1,8 @@
-# Quenya self-study app
+# Eäsis
+### Quenya self-study app
 
-Android-first (Kotlin Multiplatform + Compose Multiplatform, iOS-ready) course that teaches Late Quenya
+*Eäsis* — "Elvish as She is Spoke." Android-first (Kotlin Multiplatform + Compose Multiplatform,
+iOS-ready) course that teaches Late Quenya
 from [Eldamo](https://eldamo.org) data. Nothing is hand-authored: lexicon, attested forms, phrases,
 lesson text and the lesson order are all generated from Eldamo. Goal: read the opening of *Markirya*
 (first 12 lines) with tap-to-translate help.
