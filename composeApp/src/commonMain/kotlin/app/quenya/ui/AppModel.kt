@@ -14,9 +14,12 @@ class AppModel(
     private val store: ReviewStore,
     val aboutText: String,
     val audioPlayer: AudioPlayer,
+    private val themePreference: ThemePreference,
 ) {
     val checker = Checker(course)
     var screen by mutableStateOf(Screen.Home); private set
+    /** null = follow the system setting; non-null = manual Laurelin(false)/Telperion(true) override. */
+    var darkOverride by mutableStateOf(themePreference.get()); private set
     var completed by mutableStateOf(0); private set
     var streak by mutableStateOf(0); private set
     var due by mutableStateOf(0); private set
@@ -48,4 +51,9 @@ class AppModel(
     }
 
     fun go(s: Screen) { screen = s }
+
+    fun setAppearance(dark: Boolean?) {
+        darkOverride = dark
+        themePreference.set(dark)
+    }
 }

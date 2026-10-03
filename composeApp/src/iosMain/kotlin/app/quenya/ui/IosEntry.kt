@@ -11,5 +11,5 @@ fun iosSqlDriver(): SqlDriver = NativeSqliteDriver(QuenyaDb.Schema, "quenya.db")
 
 /** Call this from the Xcode wrapper project (see README: iOS). */
 fun MainViewController() = ComposeUIViewController {
-    App(iosSqlDriver(), { (NSDate().timeIntervalSince1970 * 1000).toLong() }, IosAudioPlayer())
+    App(iosSqlDriver(), { (NSDate().timeIntervalSince1970 * 1000).toLong() }, IosAudioPlayer(), IosThemePreference())
 }

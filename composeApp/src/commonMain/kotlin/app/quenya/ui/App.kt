@@ -17,6 +17,7 @@ import app.quenya.core.*
 import app.quenya.core.CheckResult
 import app.quenya.core.io.DataLoader
 import app.quenya.ui.resources.Res
+import app.quenya.ui.theme.EasisTheme
 import kotlinx.coroutines.launch
 
 private suspend fun loadAssets(): Pair<CourseData, String> {
@@ -29,22 +30,22 @@ private suspend fun loadAssets(): Pair<CourseData, String> {
 }
 
 @Composable
-fun App(driver: SqlDriver, nowMs: () -> Long, audioPlayer: AudioPlayer) {
-    MaterialTheme {
+fun App(driver: SqlDriver, nowMs: () -> Long, audioPlayer: AudioPlayer, themePreference: ThemePreference) {
+    var model by remember { mutableStateOf<AppModel?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        try {
+            val (course, meta) = loadAssets()
+            val store = SqlReviewStore(driver)
+            val m = AppModel(course, StudyEngine(course, store, nowMs = nowMs), store, DataLoader.about(meta), audioPlayer, themePreference)
+            m.refresh()
+            model = m
+        } catch (t: Throwable) {
+            error = t.message ?: t.toString()
+        }
+    }
+    EasisTheme(darkOverride = model?.darkOverride) {
         Surface(Modifier.fillMaxSize()) {
-            var model by remember { mutableStateOf<AppModel?>(null) }
-            var error by remember { mutableStateOf<String?>(null) }
-            LaunchedEffect(Unit) {
-                try {
-                    val (course, meta) = loadAssets()
-                    val store = SqlReviewStore(driver)
-                    val m = AppModel(course, StudyEngine(course, store, nowMs = nowMs), store, DataLoader.about(meta), audioPlayer)
-                    m.refresh()
-                    model = m
-                } catch (t: Throwable) {
-                    error = t.message ?: t.toString()
-                }
-            }
             Box(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp)) {
                 val m = model
                 when {
@@ -67,7 +68,7 @@ private fun Root(m: AppModel) {
                 Screen.Study -> StudyScreen(m)
                 Screen.Done -> DoneScreen(m)
                 Screen.Reader -> ReaderScreen(m.course, m.audioPlayer)
-                Screen.About -> AboutScreen(m.aboutText)
+                Screen.About -> AboutScreen(m.aboutText, m.darkOverride, m::setAppearance)
             }
         }
         if (m.screen != Screen.Study) {
@@ -90,9 +91,14 @@ private fun HomeScreen(m: AppModel, onStart: () -> Unit) {
         else {
             Text("Session ${s.n} of ${m.total}", style = MaterialTheme.typography.titleMedium)
             Text(s.title ?: s.kind.replaceFirstChar { it.uppercase() })
-            s.milestone?.let { Text("Milestone: $it", fontWeight = FontWeight.Bold) }
+            s.milestone?.let {
+                Text("Milestone: $it", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+            }
         }
-        Text("Reviews due: ${m.due}    Streak: ${m.streak} day(s)")
+        Row {
+            Text("Reviews due: ${m.due}    ")
+            Text("Streak: ${m.streak} day(s)", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+        }
         if (s != null) Button(onStart) { Text("Start session") }
     }
 }
@@ -241,7 +247,12 @@ private fun ChoiceView(ex: ChoiceExercise, onNext: () -> Unit) {
         }
     }
     picked?.let {
-        Text(if (it == ex.answerIndex) "Correct." else "Not quite.", fontWeight = FontWeight.Bold)
+        val ok = it == ex.answerIndex
+        Text(
+            if (ok) "Correct." else "Not quite.",
+            fontWeight = FontWeight.Bold,
+            color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+        )
         Text(ex.explanation)
         Text("Source: ${ex.evidence}", style = MaterialTheme.typography.labelSmall)
         Button(onNext) { Text("Continue") }
@@ -266,6 +277,7 @@ private fun ColumnScope.TypedView(s: SessionStep.Typed, checker: Checker, onNext
                     Verdict.INCORRECT -> "Not matching."
                 },
                 fontWeight = FontWeight.Bold,
+                color = if (r.correct) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
             )
             r.notes.forEach { Text(it.message, style = MaterialTheme.typography.bodyMedium) }
             if (!r.correct) Text("Answer: ${r.expected}")
@@ -294,11 +306,17 @@ private fun ReaderScreen(course: CourseData, audioPlayer: AudioPlayer) {
 }
 
 @Composable
-private fun AboutScreen(about: String) {
+private fun AboutScreen(about: String, darkOverride: Boolean?, onSetDarkOverride: (Boolean?) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("About", style = MaterialTheme.typography.headlineMedium)
         Text(about)
         Text("Licensed CC BY 4.0. Tolkien's texts remain under copyright; this is a personal-use build.")
         Text("Every word and form shows where it came from. Entries are labelled attested or unverified; Eldamo's own marks are shown unchanged and are not interpreted by this app.")
+        Text("Appearance", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(darkOverride == false, { onSetDarkOverride(false) }, { Text("☀ Laurelin") })
+            FilterChip(darkOverride == null, { onSetDarkOverride(null) }, { Text("Auto") })
+            FilterChip(darkOverride == true, { onSetDarkOverride(true) }, { Text("☾ Telperion") })
+        }
     }
 }
