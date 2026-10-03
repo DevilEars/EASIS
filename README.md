@@ -7,12 +7,25 @@ from [Eldamo](https://eldamo.org) data. Nothing is hand-authored: lexicon, attes
 lesson text and the lesson order are all generated from Eldamo. Goal: read the opening of *Markirya*
 (first 12 lines) with tap-to-translate help.
 
-```
-Data © 2008–2026 Paul Strack, Eldamo, CC BY 4.0.** 
+## License
 
-The app's About screen credits it.
-Tolkien's texts remain under copyright: this is a personal-use build.
-```
+This project uses four different licensing/rights statuses for four different layers of content,
+and it's important to keep them distinct:
+
+- **Original code and tooling** (the Kotlin/Compose app, curriculum-generation scripts, audio
+  pipeline, and other original work in this repo) — [CC BY-NC](https://creativecommons.org/licenses/by-nc/4.0/)
+  (Creative Commons Attribution-NonCommercial). This is the license that applies to our work
+  specifically. Full text in [`LICENSE`](LICENSE).
+- **Eldamo data** — CC BY 4.0, © 2008–2026 Paul Strack ([eldamo.org](https://eldamo.org)). Used under
+  its existing license with attribution preserved; CC BY-NC does not extend to or override this.
+  Credited in the app's About screen.
+- **Cinzel Decorative** (bundled display font, headers only) — © 2012 Natanael Gama, SIL Open Font
+  License 1.1, its own terms independent of CC BY-NC. Full text in
+  [`THIRD_PARTY_LICENSES/cinzel-decorative-OFL.txt`](THIRD_PARTY_LICENSES/cinzel-decorative-OFL.txt).
+- **Tolkien-derived text and vocabulary** (e.g. *Markirya* lines and other Tolkien-originated
+  material) — remains under ordinary copyright, held by the Tolkien Estate/rights holders. This
+  content is not licensed by us under any terms; it is not ours to license. This app's use of it is
+  a personal, non-commercial study build, not a license grant.
 
 ## What has been verified, and what has not
 
