@@ -57,6 +57,7 @@ python tools/build_data.py tools/eldamo-data.xml    # writes composeApp/.../comp
 python tools/make_kotlin_fixtures.py                # refresh the test fixtures from the new data
 python tools/generate_audio.py                      # synthesizes Reader audio clips (needs espeak-ng, ffmpeg)
 ```
+Reader audio is still eSpeak. The neural replacement is specified in [docs/specs/neural-reader-audio.md](docs/specs/neural-reader-audio.md).
 `espeak-ng` and `ffmpeg` (`brew install espeak-ng ffmpeg` on macOS) are only needed for the audio step —
 everything else is pure Python. `tools/skeleton.json` is the only hand-edited input besides the Quenya
 phoneme/stress rules in `tools/quenya_phonetics.py` (Appendix E conventions; Eldamo's own phonetic data
