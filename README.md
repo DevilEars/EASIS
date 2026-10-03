@@ -53,13 +53,12 @@ Without Gradle (needs `kotlinc` and JUnit 4 only):
 ```bash
 KOTLINC_HOME=/path/to/kotlinc ./tools/run_core_tests.sh
 ```
-With Gradle: `gradle :core:jvmTest`.
+With Gradle: `./gradlew :core:jvmTest`.
 
 ## Build the Android app
 
-1. Open the folder in Android Studio (or run `gradle wrapper` once to create the wrapper).
-2. If sync fails, fix versions in `gradle/libs.versions.toml` first (see backlog item 3).
-3. `gradle :androidApp:installDebug`, or sideload `androidApp/build/outputs/apk/debug/*.apk`.
+1. Open the folder in Android Studio, or run `./gradlew :androidApp:installDebug` from a terminal.
+2. Sideload instead with `androidApp/build/outputs/apk/debug/*.apk` if you'd rather not install via Gradle.
 
 ## iOS
 
