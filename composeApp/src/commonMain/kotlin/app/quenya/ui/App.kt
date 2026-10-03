@@ -1,6 +1,7 @@
 package app.quenya.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,6 +18,7 @@ import app.quenya.core.*
 import app.quenya.core.CheckResult
 import app.quenya.core.io.DataLoader
 import app.quenya.ui.resources.Res
+import app.quenya.ui.theme.BackgroundMotif
 import app.quenya.ui.theme.EasisTheme
 import kotlinx.coroutines.launch
 
@@ -44,14 +46,26 @@ fun App(driver: SqlDriver, nowMs: () -> Long, audioPlayer: AudioPlayer, themePre
             error = t.message ?: t.toString()
         }
     }
+    val dark = model?.darkOverride ?: isSystemInDarkTheme()
     EasisTheme(darkOverride = model?.darkOverride) {
+        // Telperion's dark ground makes a line pop at low alpha; Laurelin's cream ground needs much
+        // more alpha for the same line to register against it — same formula, different contrast math.
+        val motifAlpha = if (dark) 0.14f else 0.30f
         Surface(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp)) {
-                val m = model
-                when {
-                    error != null -> Text("Could not load data: $error")
-                    m == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                    else -> Root(m)
+            Box(Modifier.fillMaxSize()) {
+                BackgroundMotif(
+                    lineColor = MaterialTheme.colorScheme.outline.copy(alpha = motifAlpha),
+                    leafColor = MaterialTheme.colorScheme.tertiary.copy(alpha = motifAlpha),
+                    topLeft = !dark,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                Box(Modifier.fillMaxSize().safeDrawingPadding().padding(16.dp)) {
+                    val m = model
+                    when {
+                        error != null -> Text("Could not load data: $error")
+                        m == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                        else -> Root(m)
+                    }
                 }
             }
         }

@@ -137,3 +137,5 @@ translation pass could add `af`, tagged as machine-translated and reviewable in 
 - Lesson summaries: spot-check all 18 for sentences cut at a colon (e.g. genitive).
 - Streak uses UTC days; switch to local time.
 - Optional: FSRS interval fuzzing and parameter fitting from your own review history.
+- Custom Elvish-themed launcher icon (currently the default emulator/Compose icon).
+- Reader screen: visual indicator (fade/arrow) showing there's more content below the fold.
