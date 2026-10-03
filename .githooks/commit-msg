@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Rejects commit messages carrying an AI self-attribution trailer. See AGENTS.md.
+msg_file="$1"
+
+if grep -qiE '(co-authored-by:.*(claude|anthropic|chatgpt|openai|copilot)|generated with.*(claude|copilot|chatgpt)|🤖)' "$msg_file"; then
+  echo "error: commit message contains an AI self-attribution trailer." >&2
+  echo "Remove it (Co-Authored-By / Generated with / 🤖) and recommit — see AGENTS.md." >&2
+  exit 1
+fi
