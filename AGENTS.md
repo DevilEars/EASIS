@@ -9,6 +9,18 @@ prioritized open work, [SPEC.md](SPEC.md) for the full design.
 Always use the committed wrapper (`./gradlew ...`), never a bare `gradle` — see README.md's
 "Run the logic tests" and "Build the Android app" sections for the exact commands.
 
+## Verification before pushing
+
+Build verification (`./gradlew :core:jvmTest`, `:androidApp:assembleDebug`,
+`:composeApp:compileKotlinIosSimulatorArm64`, as applicable) is a prerequisite for every push —
+never a substitute for one. A green build proves the code compiles, nothing more.
+
+Beyond that, every push needs **human-in-the-loop verification**: show the user what changed and
+what was checked, and get their explicit go-ahead before committing — for all code, not only
+UX-visible changes. A backend fix, a data-pipeline script, a tool with no UI at all: same rule.
+Don't commit and push on your own judgment that something looks right; that call is the user's,
+every time.
+
 ## Generated data
 
 Everything under `composeApp/.../composeResources/files/*.json` (lexicon, forms, phrases, lesson
