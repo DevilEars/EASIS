@@ -15,10 +15,15 @@ Answers, before any UI exists:
   1. How much late-period Quenya (l="q") data is there?
   2. Does every token of each milestone text resolve to a lexicon entry with a gloss?
   3. How many lemmas / lemma+form pairs must the learner meet per milestone?
+  4. Do case/plural endings actually vary by noun class (vocalic vs consonantal stems),
+     and if so, is that already explained by the single Eldamo grammar entry each
+     feature's lesson is built from, or does the curriculum need an extra teaching unit?
 """
+import re
 import sys
+import unicodedata
 import xml.etree.ElementTree as ET
-from collections import Counter
+from collections import Counter, defaultdict
 
 LANG = "q"  # Late Quenya (1950-1973). "nq" = Neo-Quenya, "mq"/"eq" = middle/early.
 
@@ -196,6 +201,57 @@ def grammar_report(words):
                   f"grammar entry: {g or '-':18} {prose}")
 
 
+# ---------------------------------------------------------------------------
+# Noun-class dependence (BACKLOG item 1): do case/plural endings differ by
+# stem class? Measured from attested (lemma, surface) pairs, not from
+# Eldamo's separate <inflect-table>/<class> grammar-paradigm elements, which
+# describe other languages' and speeches' declension tables, not Quenya
+# nouns specifically.
+# ---------------------------------------------------------------------------
+CASE_FEATURES = ["plural", "genitive", "allative", "ablative", "locative", "instrumental"]
+
+
+def _strip_marks(s):
+    return "".join(c for c in unicodedata.normalize("NFD", s) if not unicodedata.combining(c))
+
+
+def _stem_class(lemma):
+    bare = re.sub(r"[^a-z]", "", _strip_marks(lemma).lower())
+    if not bare:
+        return "?"
+    return "vocalic" if bare[-1] in "aeiou" else f"cons-{bare[-1]}"
+
+
+def _suffix(lemma, surface):
+    a, b = _strip_marks(lemma).lower(), _strip_marks(surface).lower()
+    n = 0
+    while n < len(a) and n < len(b) and a[n] == b[n]:
+        n += 1
+    return b[n:] or "(Ø/stem-change)"
+
+
+def noun_class_report(words):
+    nouns = [w for w in words if w.get("l") == LANG and w.get("speech") == "n"]
+    print("\n=== Noun-class dependence of case/plural endings ===")
+    print(f"(measured over {len(nouns)} late-Quenya nouns' attested <ref><inflect> forms)")
+    for feat in CASE_FEATURES:
+        by_class = defaultdict(Counter)
+        for w in nouns:
+            lemma = w.get("v")
+            for ref in w.findall("ref"):
+                surf = ref.get("v") or ""
+                if not surf or " " in surf.strip():
+                    continue
+                for inf in ref.findall("inflect"):
+                    if (inf.get("form") or "").split() == [feat]:
+                        by_class[_stem_class(lemma)][_suffix(lemma, surf)] += 1
+        total = sum(sum(c.values()) for c in by_class.values())
+        print(f"\n  {feat} ({total} attested forms):")
+        for cls, ctr in sorted(by_class.items(), key=lambda x: -sum(x[1].values())):
+            print(f"    {cls:10} n={sum(ctr.values()):3}  patterns={len(ctr):2}  "
+                  f"top={ctr.most_common(4)}")
+
+
 def seen_feats_upto(rows, milestone):
     feats = set()
     for m, new, *_ in rows:
@@ -214,6 +270,7 @@ def main():
     for m in MILESTONES:
         milestone_report(words, index, m)
     grammar_report(words)
+    noun_class_report(words)
 
 
 if __name__ == "__main__":

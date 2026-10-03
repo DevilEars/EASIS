@@ -2,13 +2,27 @@
 
 Ordered roughly by how much each item could change the plan.
 
-## 1. Measure noun-class dependence of the endings  *(requested)*
-Quenya case and plural endings can differ by noun class (vocalic vs consonantal and so on).
-If they do, every case unit multiplies in size and the session estimates are too low.
-- Eldamo has 500 `<class>` elements and `<inflect-table form=… from="inflect">` tables that group
-  forms by class. Count, for each milestone feature, how many distinct ending patterns appear.
-- Re-run the curriculum model with one sub-session per extra pattern and compare against session 40.
-- Likely outcome to check: `markirya-12` currently lands at session 35, so there are only 5 spare sessions.
+## 1. Measure noun-class dependence of the endings  *(requested)* — done, no plan change
+`tools/eldamo_report.py` now has a `noun_class_report` (BACKLOG item 4 in its own docstring) that
+groups every attested case/plural ending by the lemma's stem class (vocalic vs which consonant).
+Measured from the 1,186 late-Quenya nouns' actual attested `<ref><inflect>` forms, not from
+Eldamo's `<inflect-table>`/`<class>` elements — those 500/411 elements turned out to describe other
+languages' and speeches' declension tables (Sindarin-looking `strong-I`/`weak-II gendered` classes
+among them), not Quenya noun paradigms, so they weren't the right evidence source after all.
+
+Finding: only **plural** genuinely splits by stem class (vocalic nouns take mostly `-r`, ~371
+attested forms, vs. consonantal nouns taking `-i` with a leading consonant repeated, ~143 forms).
+The other five case features (genitive, allative, ablative, locative, instrumental) show the same
+suffix across stem classes, give or take a phonological epenthetic vowel (`-nna`/`-na`,
+`-llo`/`-ello`) too minor to need separate teaching. Locative's 17 attested forms are thin and
+scattered — worth rechecking if Eldamo adds more late-Quenya locative citations.
+
+The plural split isn't a gap, either: Eldamo's own "plural nouns" grammar entry — the entry the
+`plural` lesson is generated from — opens by stating the rule directly ("Quenya has two general
+plural suffixes: -i used after consonantal nouns and -r used after (most) vocalic nouns"), and
+`Exercises.kt`'s `formChoice` already samples attested forms per feature at random across all
+lemmas, so a plural-practice session draws from both patterns' pools without any code change.
+**No curriculum restructuring needed** — `skeleton.json` and the 49-session plan stand as-is.
 
 ## 2. Calibrate the session model with real learning
 `tools/skeleton.json` assumes 2 sessions per core feature, 1 per minor feature, 6 new words per session.
