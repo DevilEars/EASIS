@@ -1,0 +1,29 @@
+-- Review state lives here, separate from the language data (JSON), so regenerating
+-- the data from a new Eldamo release never wipes review history.
+CREATE TABLE card (
+    id TEXT NOT NULL PRIMARY KEY,        -- lexicon id of the word
+    state INTEGER NOT NULL,              -- 1 Learning, 2 Review, 3 Relearning
+    step INTEGER,
+    stability REAL,
+    difficulty REAL,
+    due INTEGER NOT NULL,                -- epoch millis (UTC)
+    last_review INTEGER
+);
+
+CREATE TABLE meta (
+    k TEXT NOT NULL PRIMARY KEY,
+    v TEXT NOT NULL
+);
+
+selectCards:
+SELECT * FROM card;
+
+upsertCard:
+INSERT OR REPLACE INTO card(id, state, step, stability, difficulty, due, last_review)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+getMeta:
+SELECT v FROM meta WHERE k = ?;
+
+setMeta:
+INSERT OR REPLACE INTO meta(k, v) VALUES (?, ?);

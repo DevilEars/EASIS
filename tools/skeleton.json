@@ -1,0 +1,30 @@
+{
+  "_comment": "Table of contents only. No lesson content is authored here: lesson text comes from Eldamo grammar entries. Edit order/ranks to reorder the course.",
+  "foundations": [
+    {"id": "pronunciation", "entry": "pronunciation and transcription"},
+    {"id": "noun-classes",  "entry": "noun classes"},
+    {"id": "article",       "entry": "definite article"},
+    {"id": "word-order",    "entry": "word order"}
+  ],
+  "features": [
+    {"feature": "plural",                "entry": "plural nouns",      "rank": 10,  "core": true},
+    {"feature": "genitive",              "entry": "genitive",          "rank": 20,  "core": true},
+    {"feature": "allative",              "entry": "allative",          "rank": 30,  "core": true},
+    {"feature": "ablative",              "entry": "ablative",          "rank": 40,  "core": true},
+    {"feature": "locative",              "entry": "locative",          "rank": 50,  "core": true},
+    {"feature": "instrumental",          "entry": "instrumental",      "rank": 60,  "core": true},
+    {"feature": "3rd-sg-poss",           "entry": "possessive",        "rank": 70,  "core": false},
+    {"feature": "1st-pl-inclusive-poss", "entry": "possessive",        "rank": 71,  "core": false},
+    {"feature": "present",               "entry": "present",           "rank": 80,  "core": true},
+    {"feature": "active-participle",     "entry": "active participle", "rank": 90,  "core": true},
+    {"feature": "future",                "entry": "future",            "rank": 100, "core": true},
+    {"feature": "infinitive",            "entry": "infinitive",        "rank": 110, "core": true},
+    {"feature": "elided",                "entry": "elision",           "rank": 120, "core": false},
+    {"feature": "intensive",             "entry": null,                "rank": 130, "core": false}
+  ],
+  "sessions_per_core_feature": 2,
+  "sessions_per_minor_feature": 1,
+  "words_per_vocab_session": 6,
+  "reading_lines_per_session": 8,
+  "markirya_core_lines": 12
+}

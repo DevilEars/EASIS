@@ -1,0 +1,33 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  android-and-logic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: current }
+      - run: gradle :core:jvmTest :androidApp:assembleDebug
+
+  ios-compile:                       # rule 1: the iOS target must always compile
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: current }
+      - run: gradle :core:compileKotlinIosSimulatorArm64 :composeApp:compileKotlinIosSimulatorArm64
+
+  reference-data:                    # FSRS reference traces must be reproducible from py-fsrs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install fsrs==6.3.2
+      - run: python tools/fsrs_reference.py
+      - run: git diff --exit-code core/src/commonTest
