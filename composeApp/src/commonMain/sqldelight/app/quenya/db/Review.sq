@@ -27,3 +27,6 @@ SELECT v FROM meta WHERE k = ?;
 
 setMeta:
 INSERT OR REPLACE INTO meta(k, v) VALUES (?, ?);
+
+deleteMeta:
+DELETE FROM meta WHERE k = ?;

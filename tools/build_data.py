@@ -242,13 +242,14 @@ def build_lessons(words, phrases):
         from_entry(f["id"], f["entry"].capitalize(), f["entry"])
     for f in [feature_info(x, set(gram)) for x in used_features(phrases)]:
         lid = "feat-" + f["feature"]
+        label = f.get("label") or f["feature"].replace("-", " ").capitalize()
         if f["entry"]:
-            from_entry(lid, f["feature"].replace("-", " ").capitalize(), f["entry"])
+            from_entry(lid, label, f["entry"])
         else:  # no Eldamo entry: describe from the data itself
             t, p = next((t, p) for p in phrases for t in p["tokens"] if f["feature"] in t["features"])
             summ = (f"Eldamo has no grammar entry for “{f['feature']}”. In the text it appears as "
                     f"“{t['text']}” ({t['gloss']}), from “{p['text']}” = “{p['gloss']}”.")
-            lessons[lid] = {"id": lid, "title": f["feature"].capitalize(), "entry": None,
+            lessons[lid] = {"id": lid, "title": label, "entry": None,
                             "generated": True, "summary": summ, "body": [summ],
                             "source": "Generated from Eldamo phrase data"}
     return lessons
@@ -267,10 +268,10 @@ def build_curriculum(phrases, gram_names):
               ("markirya-12", [f"markirya-{i:02d}" for i in range(1, core_n + 1)], True),
               ("markirya-full", [f"markirya-{i:02d}" for i in range(core_n + 1, 38)], False)]
     sessions = []
-    def add(kind, **kw):
-        sessions.append({"n": len(sessions) + 1, "kind": kind, **kw})
+    def add_session(slots, milestone=None, stretch=False):
+        sessions.append({"n": len(sessions) + 1, "slots": slots, "milestone": milestone, "stretch": stretch})
     for f in SKEL["foundations"]:
-        add("lesson", lesson=f["id"], title=f["entry"].capitalize())
+        add_session([dict(kind="lesson", lesson=f["id"], title=f["entry"].capitalize())])
     seen_f, seen_l = set(), set()
     for mid, pids, core in blocks:
         toks = [t for pid in pids for t in by_id[pid]["tokens"]]
@@ -282,21 +283,39 @@ def build_curriculum(phrases, gram_names):
         seen_f |= set(feats); seen_l |= set(lemmas)
         gram = []
         for x in feats:
-            gram.append(dict(kind="lesson", lesson="feat-" + x, feature=x, title=x.replace("-", " ").capitalize()))
+            label = rank[x].get("label") or x.replace("-", " ").capitalize()
+            gram.append(dict(kind="lesson", lesson="feat-" + x, feature=x, title=label))
             reps = SKEL["sessions_per_core_feature"] if rank[x]["core"] else SKEL["sessions_per_minor_feature"]
             for r in range(1, reps):
-                gram.append(dict(kind="practice", feature=x, title=x.replace("-", " ").capitalize() + " practice"))
+                gram.append(dict(kind="practice", feature=x, title=label + " practice"))
         w = SKEL["words_per_vocab_session"]
         vocab = [dict(kind="vocab", lemmas=lemmas[i:i + w], title=f"Words {i // w + 1}")
                  for i in range(0, len(lemmas), w)]
-        for s in interleave(gram, vocab) if gram and vocab else gram + vocab:
-            add(s.pop("kind"), **s)
+        content = interleave(gram, vocab) if gram and vocab else gram + vocab
+
+        # Reading is a slot, attached onto the tail of this block's content sessions, not a
+        # dedicated session of its own — the Reader tab is where reading actually lives now.
         step = SKEL["reading_lines_per_session"] if mid == "markirya-full" else len(pids)
+        reading_chunks = []
         for i in range(0, len(pids), step):
             chunk = pids[i:i + step]
             last = i + step >= len(pids)
-            add("reading", phrases=chunk, title="Reading: " + mid, milestone=mid if last else None,
-                stretch=not core)
+            reading_chunks.append({"slot": dict(kind="reading", phrases=chunk, title="Reading: " + mid),
+                                    "milestone": mid if last else None, "stretch": not core})
+
+        # Defensive fallback (not expected to fire with current content): if a block ever has more
+        # reading chunks than content sessions to carry them, the overflow becomes its own session
+        # rather than being silently dropped.
+        attach, overflow = reading_chunks[:len(content)], reading_chunks[len(content):]
+        attach_from = len(content) - len(attach)
+        for idx, c in enumerate(content):
+            slots, milestone, stretch = [c], None, False
+            if idx >= attach_from:
+                rc = attach[idx - attach_from]
+                slots.append(rc["slot"]); milestone, stretch = rc["milestone"], rc["stretch"]
+            add_session(slots, milestone=milestone, stretch=stretch)
+        for rc in overflow:
+            add_session([rc["slot"]], milestone=rc["milestone"], stretch=rc["stretch"])
     return sessions
 
 # ------------------------------------------------------------------- main
@@ -335,20 +354,24 @@ def check(lex, forms, phrases, lessons, sessions):
     for f in forms:
         if f["lemma"] not in lex: P.append(f"form of unknown lemma {f['lemma']}")
     if [s["n"] for s in sessions] != list(range(1, len(sessions) + 1)): P.append("session numbers not contiguous")
-    intro = Counter(l for s in sessions if s["kind"] == "vocab" for l in s["lemmas"])
+    intro = Counter(l for s in sessions for slot in s["slots"] if slot["kind"] == "vocab" for l in slot["lemmas"])
     P += [f"lemma introduced twice: {l}" for l, c in intro.items() if c > 1]
     for s in sessions:
-        if s["kind"] == "lesson" and s["lesson"] not in lessons: P.append(f"session {s['n']}: missing lesson")
-        if s["kind"] == "lesson" and not lessons[s["lesson"]]["summary"].strip(): P.append(f"empty lesson {s['lesson']}")
+        for slot in s["slots"]:
+            if slot["kind"] != "lesson": continue
+            if slot["lesson"] not in lessons: P.append(f"session {s['n']}: missing lesson")
+            elif not lessons[slot["lesson"]]["summary"].strip(): P.append(f"empty lesson {slot['lesson']}")
     # every resolved lemma used by a reading must be introduced no later than that reading
     pos = {}
     for s in sessions:
-        if s["kind"] == "vocab":
-            for l in s["lemmas"]: pos[l] = s["n"]
+        for slot in s["slots"]:
+            if slot["kind"] == "vocab":
+                for l in slot["lemmas"]: pos[l] = s["n"]
     by_id = {p["id"]: p for p in phrases}
     for s in sessions:
-        if s["kind"] == "reading":
-            for pid in s["phrases"]:
+        for slot in s["slots"]:
+            if slot["kind"] != "reading": continue
+            for pid in slot["phrases"]:
                 for t in by_id[pid]["tokens"]:
                     if t["lemma"] and pos.get(t["lemma"], 10**9) > s["n"]:
                         P.append(f"session {s['n']}: reads {t['lemma']} before it is taught")
@@ -361,7 +384,8 @@ def report(version, lex, forms, phrases, tstats, sessions, problems):
     print("unresolved tokens:", unres or "none")
     amb = [(p["id"], t["text"]) for p in phrases for t in p["tokens"] if t["resolution"].endswith("ambiguous")]
     print("ambiguous (heuristic) tokens:", len(amb), amb[:8])
-    print(f"curriculum: {len(sessions)} sessions;", dict(Counter(s['kind'] for s in sessions)))
+    print(f"curriculum: {len(sessions)} sessions;",
+          dict(Counter(slot['kind'] for s in sessions for slot in s['slots'])))
     for s in sessions:
         if s.get("milestone"):
             print(f"  milestone {s['milestone']} at session {s['n']}")

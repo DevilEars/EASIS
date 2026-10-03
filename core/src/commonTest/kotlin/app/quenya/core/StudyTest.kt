@@ -32,7 +32,7 @@ class StudyTest {
             now += day                                           // one session per day
         }
         assertEquals(0, engine.buildSteps(1).size, "nothing after the last session")
-        val taught = course.curriculum.flatMap { it.lemmas }.toSet()
+        val taught = course.curriculum.flatMap { s -> s.slots.flatMap { it.lemmas } }.toSet()
         assertEquals(taught, store.cards().keys, "one card per taught word")
         assertTrue(rated > 100, "reviews should accumulate, got $rated")
         assertEquals(engine.sessionCount, store.streak().count, "daily sessions give a full streak")
@@ -49,6 +49,31 @@ class StudyTest {
         val good = ids[0]; val again = ids[1]
         engine.rate(good, Rating.Good); engine.rate(again, Rating.Again)
         assertTrue(store.cards().getValue(again).dueMs <= store.cards().getValue(good).dueMs)
+    }
+
+    @Test fun killedMidSessionResumesToTheExactSameSteps() = runSuspend {
+        val now = 1_800_000_000_000L
+        val store = InMemoryReviewStore()
+        val engine = StudyEngine(course, store) { now }
+        val steps = engine.buildSteps(seed = 42)
+        assertTrue(steps.isNotEmpty())
+        engine.advance(2)
+        // Simulate the process dying and restarting: a brand-new engine over the same durable store.
+        val revived = StudyEngine(course, store) { now }
+        val resumed = revived.resume()
+        assertTrue(resumed != null, "resume() should find the saved in-progress session")
+        val (resumedSteps, resumedIndex) = resumed
+        assertEquals(steps.map { it::class }, resumedSteps.map { it::class }, "resumed steps should match exactly")
+        assertEquals(2, resumedIndex)
+    }
+
+    @Test fun finishingASessionClearsResumeState() = runSuspend {
+        val now = 1_800_000_000_000L
+        val store = InMemoryReviewStore()
+        val engine = StudyEngine(course, store) { now }
+        engine.buildSteps(seed = 1)
+        engine.finishSession()
+        assertEquals(null, engine.resume())
     }
 
     @Test fun streakResetsAfterAGapAndHoldsWithinADay() = runSuspend {

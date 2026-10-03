@@ -4,6 +4,7 @@ package app.quenya.core
 data class SessionPlan(
     val session: Session,
     val lesson: Lesson?,
+    val lessonFeature: String?,
     val introLemmas: List<LexiconEntry>,
     val readingPhrases: List<Phrase>,
     val exercises: List<ChoiceExercise>,
@@ -13,30 +14,38 @@ data class SessionPlan(
 class Planner(private val course: CourseData) {
     val sessionCount: Int get() = course.curriculum.size
 
-    /** Phrases whose reading session has been completed (or is the current one). */
+    /** Phrases whose reading slot has been completed (or is in the current session). */
     fun unlockedPhrases(upToSession: Int): List<String> =
-        course.curriculum.filter { it.n <= upToSession && it.kind == "reading" }.flatMap { it.phrases }
+        course.curriculum.filter { it.n <= upToSession }
+            .flatMap { it.slots }.filter { it.kind == "reading" }.flatMap { it.phrases }
 
     fun knownLemmas(upToSession: Int): List<String> =
-        course.curriculum.filter { it.n <= upToSession && it.kind == "vocab" }.flatMap { it.lemmas }
+        course.curriculum.filter { it.n <= upToSession }
+            .flatMap { it.slots }.filter { it.kind == "vocab" }.flatMap { it.lemmas }
 
     /** Plan for session [n] (1-based). [seed] makes exercises reproducible. */
     fun plan(n: Int, seed: Long): SessionPlan {
         val s = course.curriculum[n - 1]
         val f = ExerciseFactory(course, seed + n)
         val unlocked = unlockedPhrases(n)
-        val exercises: List<ChoiceExercise> = when (s.kind) {
-            "lesson", "practice" -> s.feature?.let { f.formChoice(it, if (s.kind == "lesson") 5 else 8) }.orEmpty()
-            "vocab" -> f.meaning(s.lemmas, s.lemmas.size)
-            "reading" -> f.cloze(s.phrases, 5)
-            else -> emptyList()
+        val exercises = buildList {
+            s.slots.forEach { slot ->
+                when (slot.kind) {
+                    "lesson" -> slot.feature?.let { addAll(f.formChoice(it, 5)) }
+                    "practice" -> slot.feature?.let { addAll(f.formChoice(it, 8)) }
+                    "vocab" -> addAll(f.meaning(slot.lemmas, slot.lemmas.size))
+                    "reading" -> addAll(f.cloze(slot.phrases, 5))
+                }
+            }
         }
         val production = f.production(unlocked, if (unlocked.isEmpty()) 0 else 2)
+        val lessonSlot = s.slots.firstOrNull { it.kind == "lesson" }
         return SessionPlan(
             session = s,
-            lesson = s.lesson?.let { course.lessonById[it] },
-            introLemmas = s.lemmas.mapNotNull { course.lex[it] },
-            readingPhrases = s.phrases.mapNotNull { course.phraseById[it] },
+            lesson = lessonSlot?.lesson?.let { course.lessonById[it] },
+            lessonFeature = lessonSlot?.feature,
+            introLemmas = s.slots.filter { it.kind == "vocab" }.flatMap { it.lemmas }.mapNotNull { course.lex[it] },
+            readingPhrases = s.slots.filter { it.kind == "reading" }.flatMap { it.phrases }.mapNotNull { course.phraseById[it] },
             exercises = exercises,
             production = production,
         )

@@ -24,9 +24,9 @@ class CourseTest {
     @Test fun everySessionPlansAndHasContent() {
         for (n in 1..planner.sessionCount) {
             val p = planner.plan(n, seed = 7)
-            when (p.session.kind) {
+            for (slot in p.session.slots) when (slot.kind) {
                 "lesson" -> assertTrue(p.lesson != null && p.lesson.summary.isNotBlank(), "session $n lesson")
-                "vocab" -> assertTrue(p.introLemmas.size == p.session.lemmas.size, "session $n lemmas missing")
+                "vocab" -> assertTrue(slot.lemmas.all { id -> p.introLemmas.any { it.id == id } }, "session $n lemmas missing")
                 "reading" -> assertTrue(p.readingPhrases.isNotEmpty(), "session $n phrases")
             }
         }
@@ -63,10 +63,11 @@ class CourseTest {
         val short = mutableListOf<String>()
         for (n in 1..planner.sessionCount) {
             val p = planner.plan(n, 11)
-            val s = p.session
-            if ((s.kind == "lesson" || s.kind == "practice") && s.feature != null) {
-                println("session $n ${s.kind} ${s.feature}: ${p.exercises.size} exercises")
-                if (p.exercises.size < 3) short += "session $n ${s.feature} (${p.exercises.size})"
+            for (slot in p.session.slots) {
+                if ((slot.kind == "lesson" || slot.kind == "practice") && slot.feature != null) {
+                    println("session $n ${slot.kind} ${slot.feature}: ${p.exercises.size} exercises")
+                    if (p.exercises.size < 3) short += "session $n ${slot.feature} (${p.exercises.size})"
+                }
             }
         }
         println("SHORT feature sessions: $short")
@@ -103,9 +104,10 @@ class CourseTest {
     }
 
     @Test fun readingsOnlyUseTaughtVocabulary() {
-        for (s in course.curriculum.filter { it.kind == "reading" }) {
+        for (s in course.curriculum) for (slot in s.slots) {
+            if (slot.kind != "reading") continue
             val taught = planner.knownLemmas(s.n).toSet()
-            for (pid in s.phrases) for (t in course.phraseById.getValue(pid).tokens)
+            for (pid in slot.phrases) for (t in course.phraseById.getValue(pid).tokens)
                 t.lemma?.let { assertTrue(it in taught, "session ${s.n}: $it read before taught") }
         }
     }
@@ -115,6 +117,20 @@ class CourseTest {
         for (n in 1..planner.sessionCount) {
             val unlocked = planner.unlockedPhrases(n).toSet()
             for (e in planner.plan(n, 3).production) assertTrue(e.phraseId in unlocked, "session $n offers locked phrase ${e.phraseId}")
+        }
+    }
+
+    @Test fun mixedSessionProducesBothKindsOfExercise() {
+        val mixed = course.curriculum.filter { s ->
+            s.slots.any { it.kind == "reading" } && s.slots.any { it.kind != "reading" }
+        }
+        assertTrue(mixed.isNotEmpty(), "expected at least one session with a reading slot attached to other content")
+        for (s in mixed) {
+            val ids = planner.plan(s.n, 1).exercises.map { it.id.substringBefore(':') }
+            assertTrue("cloze" in ids, "session ${s.n}: mixed session dropped its reading-slot exercises")
+            val otherKind = s.slots.first { it.kind != "reading" }.kind
+            val expectedPrefix = if (otherKind == "vocab") "meaning" else "form"
+            assertTrue(expectedPrefix in ids, "session ${s.n}: mixed session dropped its $otherKind-slot exercises")
         }
     }
 

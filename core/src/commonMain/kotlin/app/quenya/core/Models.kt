@@ -74,14 +74,19 @@ data class AudioManifest(
 )
 
 @Serializable
-data class Session(
-    val n: Int,
+data class Slot(
     val kind: String,               // lesson | practice | vocab | reading
     val title: String? = null,
     val lesson: String? = null,
     val feature: String? = null,
     val lemmas: List<String> = emptyList(),
     val phrases: List<String> = emptyList(),
+)
+
+@Serializable
+data class Session(
+    val n: Int,
+    val slots: List<Slot>,
     val milestone: String? = null,
     val stretch: Boolean = false,
 )

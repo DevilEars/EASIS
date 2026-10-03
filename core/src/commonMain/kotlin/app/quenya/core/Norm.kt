@@ -57,5 +57,14 @@ object Norm {
         return dp[b.length]
     }
 
-    fun featureLabel(features: List<String>) = features.joinToString(" + ") { it.replace('-', ' ') }
+    private val featureAbbrev = mapOf(
+        "1st" to "first person", "2nd" to "second person", "3rd" to "third person",
+        "sg" to "singular", "pl" to "plural", "poss" to "possessive",
+        "prep" to "prepositional", "fem" to "feminine", "masc" to "masculine",
+    )
+
+    /** Full words only, never abbreviations or symbols — "first person plural and genitive", not
+     *  "1st pl + genitive". */
+    fun featureLabel(features: List<String>) =
+        features.joinToString(" and ") { feat -> feat.split("-").joinToString(" ") { featureAbbrev[it] ?: it } }
 }

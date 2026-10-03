@@ -1,5 +1,8 @@
 package app.quenya.core
 
+/** A session the user started but hasn't finished; durable so it survives the app being killed. */
+data class InProgressSession(val sessionN: Int, val seed: Long, val stepIndex: Int, val reviewLemmaIds: List<String>)
+
 /** Persistence boundary. The app implements it with SQLDelight; tests use the in-memory one. */
 interface ReviewStore {
     suspend fun cards(): Map<String, FsrsCard>
@@ -8,6 +11,9 @@ interface ReviewStore {
     suspend fun setCompletedSessions(n: Int)
     suspend fun streak(): Streak
     suspend fun setStreak(s: Streak)
+    suspend fun inProgressSession(): InProgressSession?
+    suspend fun saveInProgressSession(s: InProgressSession)
+    suspend fun clearInProgressSession()
 }
 
 data class Streak(val count: Int = 0, val lastDay: Long = -1L)
@@ -16,12 +22,16 @@ class InMemoryReviewStore : ReviewStore {
     private val map = mutableMapOf<String, FsrsCard>()
     private var done = 0
     private var streak = Streak()
+    private var inProgress: InProgressSession? = null
     override suspend fun cards(): Map<String, FsrsCard> = map.toMap()
     override suspend fun saveCard(id: String, card: FsrsCard) { map[id] = card }
     override suspend fun completedSessions() = done
     override suspend fun setCompletedSessions(n: Int) { done = n }
     override suspend fun streak() = streak
     override suspend fun setStreak(s: Streak) { streak = s }
+    override suspend fun inProgressSession() = inProgress
+    override suspend fun saveInProgressSession(s: InProgressSession) { inProgress = s }
+    override suspend fun clearInProgressSession() { inProgress = null }
 }
 
 /** One screen in a study session. */
@@ -47,29 +57,59 @@ class StudyEngine(
 
     suspend fun dueCount(): Int = store.cards().count { it.value.dueMs <= nowMs() }
 
-    /** Steps for the next session: reviews, new material, exercises, production. */
-    suspend fun buildSteps(seed: Long): List<SessionStep> {
-        val n = store.completedSessions() + 1
-        if (n > sessionCount) return emptyList()
+    suspend fun unlockedPhrases(): List<Phrase> =
+        planner.unlockedPhrases(store.completedSessions()).mapNotNull { course.phraseById[it] }
+
+    /** Pure function of (n, seed, course, frozen review ids) — the only non-deterministic input to
+     *  a session is which cards are due, so freezing that list lets a resume reproduce byte-for-byte
+     *  the same steps even if the live due-card set has since changed. */
+    private fun assembleSteps(n: Int, seed: Long, reviewLemmaIds: List<String>): List<SessionStep> {
         val plan = planner.plan(n, seed)
         val steps = mutableListOf<SessionStep>()
-        val now = nowMs()
-        store.cards().entries.filter { it.value.dueMs <= now }.sortedBy { it.value.dueMs }
-            .take(maxReviews).forEach { (id, _) ->
-                course.lex[id]?.let { steps += SessionStep.Review(it, course.exampleFor(id)) }
-            }
+        reviewLemmaIds.forEach { id ->
+            course.lex[id]?.let { steps += SessionStep.Review(it, course.exampleFor(id)) }
+        }
         plan.lesson?.let { l ->
-            val ex = plan.session.feature?.let { f ->
+            val ex = plan.lessonFeature?.let { f ->
                 course.formsByFeature[f].orEmpty().filter { it.clean }.sortedByDescending { course.lex[it.lemma]?.attestations ?: 0 }
                     .distinctBy { it.lemma }.take(6)
             }.orEmpty()
-            steps += SessionStep.LessonStep(l, plan.session.feature, ex)
+            steps += SessionStep.LessonStep(l, plan.lessonFeature, ex)
         }
         if (plan.introLemmas.isNotEmpty()) steps += SessionStep.Intro(plan.introLemmas)
         if (plan.readingPhrases.isNotEmpty()) steps += SessionStep.Reading(plan.readingPhrases)
         plan.exercises.forEach { steps += SessionStep.Choice(it) }
         plan.production.forEach { steps += SessionStep.Typed(it, course.phraseById.getValue(it.phraseId)) }
         return steps
+    }
+
+    /** Steps for the next session: reviews, new material, exercises, production. Persists an
+     *  in-progress marker immediately, so even being killed before the first answer is resumable. */
+    suspend fun buildSteps(seed: Long): List<SessionStep> {
+        val n = store.completedSessions() + 1
+        if (n > sessionCount) return emptyList()
+        val now = nowMs()
+        val reviewIds = store.cards().entries.filter { it.value.dueMs <= now }.sortedBy { it.value.dueMs }
+            .take(maxReviews).map { it.key }
+        val steps = assembleSteps(n, seed, reviewIds)
+        store.saveInProgressSession(InProgressSession(n, seed, 0, reviewIds))
+        return steps
+    }
+
+    /** Reconstructs the exact step list of a session the user left mid-way, plus where they were. */
+    suspend fun resume(): Pair<List<SessionStep>, Int>? {
+        val saved = store.inProgressSession() ?: return null
+        if (saved.sessionN != store.completedSessions() + 1) {
+            store.clearInProgressSession()
+            return null
+        }
+        return assembleSteps(saved.sessionN, saved.seed, saved.reviewLemmaIds) to saved.stepIndex
+    }
+
+    /** Record which step the user has reached, so resume lands in the right place. */
+    suspend fun advance(toIndex: Int) {
+        val saved = store.inProgressSession() ?: return
+        store.saveInProgressSession(saved.copy(stepIndex = toIndex))
     }
 
     suspend fun rate(lemmaId: String, rating: Rating) {
@@ -82,9 +122,10 @@ class StudyEngine(
         val n = store.completedSessions() + 1
         if (n > sessionCount) return
         val existing = store.cards()
-        course.curriculum[n - 1].lemmas.filter { it !in existing }
+        course.curriculum[n - 1].slots.flatMap { it.lemmas }.filter { it !in existing }
             .forEach { store.saveCard(it, FsrsCard(dueMs = nowMs())) }
         store.setCompletedSessions(n)
+        store.clearInProgressSession()
         val today = nowMs() / FsrsScheduler.DAY_MS
         val s = store.streak()
         store.setStreak(when {

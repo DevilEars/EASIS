@@ -32,7 +32,13 @@ private suspend fun loadAssets(): Pair<CourseData, String> {
 }
 
 @Composable
-fun App(driver: SqlDriver, nowMs: () -> Long, audioPlayer: AudioPlayer, themePreference: ThemePreference) {
+fun App(
+    driver: SqlDriver,
+    nowMs: () -> Long,
+    audioPlayer: AudioPlayer,
+    themePreference: ThemePreference,
+    backHandler: @Composable (enabled: Boolean, onBack: () -> Unit) -> Unit = { _, _ -> },
+) {
     var model by remember { mutableStateOf<AppModel?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
@@ -64,7 +70,7 @@ fun App(driver: SqlDriver, nowMs: () -> Long, audioPlayer: AudioPlayer, themePre
                     when {
                         error != null -> Text("Could not load data: $error")
                         m == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                        else -> Root(m)
+                        else -> Root(m, backHandler)
                     }
                 }
             }
@@ -73,15 +79,16 @@ fun App(driver: SqlDriver, nowMs: () -> Long, audioPlayer: AudioPlayer, themePre
 }
 
 @Composable
-private fun Root(m: AppModel) {
+private fun Root(m: AppModel, backHandler: @Composable (Boolean, () -> Unit) -> Unit) {
     val scope = rememberCoroutineScope()
+    backHandler(m.screen == Screen.Study, m::exitSession)
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {
             when (m.screen) {
-                Screen.Home -> HomeScreen(m) { scope.launch { m.start() } }
+                Screen.Home -> HomeScreen(m, onStart = { scope.launch { m.start() } }, onResume = { scope.launch { m.resume() } })
                 Screen.Study -> StudyScreen(m)
                 Screen.Done -> DoneScreen(m)
-                Screen.Reader -> ReaderScreen(m.course, m.audioPlayer)
+                Screen.Reader -> ReaderScreen(m.course, m.unlockedPhrases, m.audioPlayer)
                 Screen.About -> AboutScreen(m.aboutText, m.darkOverride, m::setAppearance)
             }
         }
@@ -96,7 +103,7 @@ private fun Root(m: AppModel) {
 }
 
 @Composable
-private fun HomeScreen(m: AppModel, onStart: () -> Unit) {
+private fun HomeScreen(m: AppModel, onStart: () -> Unit, onResume: () -> Unit) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Eäsis", style = MaterialTheme.typography.headlineLarge)
         Text("Quenya self-study app", style = MaterialTheme.typography.titleSmall)
@@ -104,7 +111,6 @@ private fun HomeScreen(m: AppModel, onStart: () -> Unit) {
         if (s == null) Text("Course complete.")
         else {
             Text("Session ${s.n} of ${m.total}", style = MaterialTheme.typography.titleMedium)
-            Text(s.title ?: s.kind.replaceFirstChar { it.uppercase() })
             s.milestone?.let {
                 Text("Milestone: $it", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
             }
@@ -113,8 +119,32 @@ private fun HomeScreen(m: AppModel, onStart: () -> Unit) {
             Text("Reviews due: ${m.due}    ")
             Text("Streak: ${m.streak} day(s)", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
         }
-        if (s != null) Button(onStart) { Text("Start session") }
+        if (s != null) {
+            if (m.inProgress) Button(onResume) { Text("Resume session") }
+            else Button(onStart) { Text("Start session") }
+        }
     }
+}
+
+private fun readingLabel(phrases: List<Phrase>): String = when (phrases.firstOrNull()?.textId) {
+    "elen-sila" -> "Elen síla"
+    "aiya-earendil" -> "Aiyá Eärendil"
+    "markirya" -> "Markirya"
+    else -> "reading"
+}
+
+private fun stepLabel(step: SessionStep): String = when (step) {
+    is SessionStep.Review -> "Reviews"
+    is SessionStep.LessonStep -> step.feature?.let { "${Norm.featureLabel(listOf(it))} — grammar" } ?: "Grammar"
+    is SessionStep.Intro -> "New words"
+    is SessionStep.Reading -> "Reading: ${readingLabel(step.phrases)}"
+    is SessionStep.Choice -> when (step.exercise.id.substringBefore(':')) {
+        "form" -> "Practice questions"
+        "cloze" -> "Reading questions"
+        "meaning" -> "Vocabulary questions"
+        else -> "Practice questions"
+    }
+    is SessionStep.Typed -> "Write it yourself"
 }
 
 @Composable
@@ -122,7 +152,11 @@ private fun StudyScreen(m: AppModel) {
     val scope = rememberCoroutineScope()
     val step = m.steps[m.index]
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        LinearProgressIndicator(progress = { (m.index + 1f) / m.steps.size }, modifier = Modifier.fillMaxWidth())
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            LinearProgressIndicator(progress = { (m.index + 1f) / m.steps.size }, modifier = Modifier.weight(1f))
+            TextButton({ m.exitSession() }) { Text("✕") }
+        }
+        Text(stepLabel(step), style = MaterialTheme.typography.labelLarge)
         key(m.index) {
             val next: () -> Unit = { scope.launch { m.next() } }
             when (step) {
@@ -311,11 +345,15 @@ private fun DoneScreen(m: AppModel) {
 }
 
 @Composable
-private fun ReaderScreen(course: CourseData, audioPlayer: AudioPlayer) {
+private fun ReaderScreen(course: CourseData, unlockedPhrases: List<Phrase>, audioPlayer: AudioPlayer) {
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { Text("Reader", style = MaterialTheme.typography.headlineMedium) }
-        item { Text("Tap a word for its lemma, gloss and form. Lines come from Eldamo's phrase entries.", style = MaterialTheme.typography.bodySmall) }
-        items(course.phrases, key = { it.id }) { PhraseView(it, course, audioPlayer) }
+        if (unlockedPhrases.isEmpty()) {
+            item { Text("Nothing unlocked yet — reading content appears here as you reach it in sessions.", style = MaterialTheme.typography.bodySmall) }
+        } else {
+            item { Text("Tap a word for its lemma, gloss and form. Lines come from Eldamo's phrase entries.", style = MaterialTheme.typography.bodySmall) }
+            items(unlockedPhrases, key = { it.id }) { PhraseView(it, course, audioPlayer) }
+        }
     }
 }
 
