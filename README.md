@@ -57,8 +57,14 @@ With Gradle: `./gradlew :core:jvmTest`.
 
 ## Build the Android app
 
-1. Open the folder in Android Studio, or run `./gradlew :androidApp:installDebug` from a terminal.
-2. Sideload instead with `androidApp/build/outputs/apk/debug/*.apk` if you'd rather not install via Gradle.
+Open the folder in Android Studio and run it from there, or from a terminal — with an emulator or
+device already running — rebuild and reinstall over any existing install with:
+
+```bash
+./gradlew :androidApp:installDebug
+```
+
+Sideloading `androidApp/build/outputs/apk/debug/*.apk` works too, if you'd rather not install via Gradle.
 
 ## iOS
 
