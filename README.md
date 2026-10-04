@@ -1,3 +1,5 @@
+<img src="docs/branding/logo.png" alt="Eäsis — gold and silver tree beneath a star" width="480">
+
 # Eäsis
 ### Quenya self-study app
 
@@ -36,7 +38,7 @@ and it's important to keep them distinct:
 | `core/.../io/DataLoader.kt` (kotlinx.serialization) | Compiles against real Gradle build now |
 | `composeApp/`, `androidApp/`, Gradle files, SQLDelight schema | **Builds.** `gradle :androidApp:assembleDebug` succeeds; debug APK installs. Versions in `gradle/libs.versions.toml` are confirmed working (Kotlin 2.4.10 / AGP 9.1.0 / Compose 1.12.1 / SQLDelight 2.3.2) |
 | iOS target (`compileKotlinIosSimulatorArm64`) | **Compiles.** No Xcode wrapper project yet (see `BACKLOG.md` item 10) |
-| Reader audio (`tools/generate_audio.py`, tap-to-play) | **Works, confirmed on-device.** 123 synthesized AAC clips (~520 KiB) for every phrase/word in `phrases.json`. Sounds like classic robotic formant synthesis (eSpeak NG, not a neural voice) — expected given the generated/small-footprint design, not a bug |
+| Reader audio (`tools/generate_audio.py`, tap-to-play) | **Works, confirmed on-device.** 123 synthesized AAC clips (~1.0 MiB) for every phrase/word in `phrases.json`. Piper neural TTS (`en_GB-cori-high`), run locally at generation time — no cloud account, no key |
 | CI | Not yet run on a real machine |
 
 ## Layout

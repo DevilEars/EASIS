@@ -60,7 +60,7 @@ Only 727 late-Quenya words have attested inflected forms, and some features have
 (1st-pl-inclusive possessive: 2). Add a paradigm engine that derives missing forms, tagged
 `reconstructed`, and drop any exercise it cannot derive reliably.
 
-## 7. Generated audio in the Reader  *(requested)* — built
+## 7. Generated audio in the Reader  *(requested)* — done
 Tap-to-play pronunciation for Reader phrases and words. Doesn't touch session/curriculum math, so it
 ranks low on "changes the plan" — but it's its own item because of the data-pipeline work involved.
 
@@ -120,6 +120,21 @@ Implementation:
 - Follow-ups, not done here: consonant gemination (`ll`, `nn`, …) is simplified rather than modeled
   as true length; not yet installed/played on a real device or simulator, only desktop `afplay`.
 
+**Follow-up — eSpeak replaced with Piper, done.** The formant voice above was always meant to be
+temporary (see `docs/specs/neural-reader-audio.md`). An Azure neural-voice draft was written and
+then dropped — no cloud account/key for a personal study build — in favor of a local Piper voice
+(`en_GB-cori-high`, VITS/ONNX, GPL-3.0, a build tool only, nothing linked into the app). Implemented
+by Grok on worktree `piper-race` (adapter `tools/piper_utterance.py`, `generate_audio.py` rewrite),
+while an independent Claude implementation on worktree `piper-claude` reached the same design (same
+syllabification/stress rule, same `en_GB-cori-high` choice) but lost the race and was kept aside,
+uncommitted, rather than merged. Merged to `main` as `010a3d9` (generator/adapter/tests/spec/README)
++ `f4e6a75` (the 123 regenerated clips). A shared venv (`claudeslop/.venv-piper`) and voice-model
+cache (`claudeslop/.piper-voices`, env-overridable via `PIPER_VOICES_DIR`) outside both worktrees
+meant the ~114MB voice model and the `piper-tts` install only happened once between the two agents.
+Clips are now ~1.0 MiB total for the same 123 keys (up from ~520 KiB — `length_scale=1.15` makes
+every clip ~15% longer, plus the neural waveform compresses slightly less than formant synthesis at
+the same bitrate). Listened to and accepted by the user.
+
 ## 8. Data editing on the phone
 Export / import one bundle file through the system file picker, so lexicon edits need no rebuild.
 
@@ -137,5 +152,7 @@ translation pass could add `af`, tagged as machine-translated and reviewable in 
 - Lesson summaries: spot-check all 18 for sentences cut at a colon (e.g. genitive).
 - Streak uses UTC days; switch to local time.
 - Optional: FSRS interval fuzzing and parameter fitting from your own review history.
-- Custom Elvish-themed launcher icon (currently the default emulator/Compose icon).
+- Custom Elvish-themed launcher icon (currently the default emulator/Compose icon). — done, `a48db63`.
 - Reader screen: visual indicator (fade/arrow) showing there's more content below the fold.
+- Reader "show full entry" section: body text renders at the same small size as the "show full
+  entry" label instead of matching the top section's font — hardly legible. Fix the font size.
