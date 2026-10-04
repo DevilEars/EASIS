@@ -7,3 +7,4 @@ local.properties
 __pycache__/
 tools/.eldamo-data.xml.cache
 tools/eldamo-data.xml
+tools/.piper/

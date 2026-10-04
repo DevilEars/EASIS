@@ -6,136 +6,140 @@ Reader pronunciation is eSpeak NG formant synthesis. It is the Microsoft Sam / D
 
 The phonetics are already right. A hand-derived Appendix E module turns Quenya spelling into an eSpeak phoneme string with explicit stress, and the known-correct stresses hold for *Eärendil* (-REN-), *andúnë* (-DÚ-), and *ancalima* (-CA-). The player, the manifest, and the clip set are fine. The waveform engine is the defect.
 
+A cloud neural voice is not the remedy. There is no speech subscription and there will be no token spend.
+
 ## Solution
 
-Replace the formant waveform with one Azure neural voice, driven by IPA inside SSML, generated at build time and shipped as the same offline clips.
+Replace the formant waveform with one local Piper voice, generated on the machine that builds the clips and shipped as the same offline AAC files.
 
-The learner still taps play, still hears audio with no network, and still hears one speaker. That speaker is a warm en-GB woman, unhurried, close and even: mezzo-alto, a little breath on the onsets, softened Received Pronunciation, no announcer lilt. Words are careful and isolated. Lines are one continuous utterance in the same voice, with the module's stress left intact.
+The learner still taps play, still hears audio with no network, and still hears one speaker. That speaker is a British woman, a little slower than the voice's own pace. Words are careful and isolated. Lines are one utterance in the same voice, with the module's stress left intact and a breath where the line has a comma or a final question mark.
 
-Default voice: `en-GB-Ada:DragonHDLatestNeural`. An environment override may select another en-GB female neural voice of the same service when the subscription's region does not offer that HD voice. The approved fallback name is `en-GB-AdaMultilingualNeural`.
+The default voice is `en_GB-cori-high`, the only high-quality single-speaker en-GB voice in the official Piper catalog. An environment override may select another catalog voice. The same-speaker smaller model is `en_GB-cori-medium`.
+
+Piper never sees Quenya spelling. The phonetics module stays the pronunciation authority. Its ASCII phoneme string is translated into the IPA characters this voice was trained on, then handed to Piper as a raw phoneme block.
 
 ## User Stories
 
 1. As a learner, I want a word clip to sound like a person speaking, so that pronunciation practice is bearable for a whole session.
 2. As a learner, I want every word and every line in the same voice, so that the course has one speaker.
-3. As a learner, I want that speaker to be a warm adult woman with an unhurried British delivery, so that the reading feels like spoken Quenya rather than a GPS prompt.
+3. As a learner, I want that speaker to be an adult British woman, speaking a little slowly, so that the reading feels like spoken Quenya rather than a GPS prompt.
 4. As a learner, I want *cirya* stressed on the first syllable, so that a two-syllable word follows Appendix E.
 5. As a learner, I want *Eärendil* stressed on *-ren-*, so that a heavy penult still wins.
 6. As a learner, I want *andúnë* stressed on the long *-dú-*, so that vowel length still places stress.
 7. As a learner, I want *ancalima* stressed on *-ca-*, so that a light penult still throws stress to the antepenult.
-8. As a learner, I want a line played as one phrase, so that I hear the words join instead of a list of dictionary entries.
-9. As a learner, I want a question line to finish with a short pause after the last word, so that *man cenuva fána cirya?* does not run into the silence as a statement blob.
-10. As a learner, I want a comma in a line to be a short pause, so that the phrasing of the poem survives synthesis.
-11. As a learner, I want play to work with the device offline, so that study does not depend on Azure at the moment I tap.
-12. As a learner, I want the same play buttons and the same presence rule (a button only when a clip exists), so that the Reader does not change shape.
-13. As a learner on Android, I want existing playback to decode the new clips, so that I do not take a player change to hear them.
-14. As a learner on iOS, I want the same, so that the shared AAC clips still play.
-15. As the person regenerating audio, I want one command to rebuild the clip library from the current phrase file, so that a data regen can be followed by an audio regen.
-16. As the person regenerating audio, I want the run to stop immediately when the speech key or region is missing, so that I do not discover an empty library at the end.
-17. As the person regenerating audio, I want a failed run to leave the previous clips and the previous manifest in place, so that a bad credential or a 400 does not wipe a working library.
-18. As the person regenerating audio, I want an unchanged clip left untouched, so that a second run does not re-bill speech I already committed.
-19. As the person regenerating audio, I want a changed pronunciation, voice, or rate to rebuild only the clips whose request changed, so that cache keys track the SSML rather than the filename.
-20. As the person regenerating audio, I want a voice-not-found response to name the override and the approved fallback voice, so that I can retarget the region without reading service docs.
-21. As the person regenerating audio, I want one probe request to succeed before the corpus starts, so that an illegal phone fails once, not on clip 80.
-22. As the person regenerating audio, I want a word the phonetics module cannot transcribe to fail the run and be reported, so that a gap stays visible. This is the current skip-and-exit behavior.
-23. As the person regenerating audio, I want the app-facing manifest to keep today's keys (surface-form key for words, phrase id for lines), so that the app keeps finding clips.
-24. As the person regenerating audio, I want the speech key only in the environment, so that it never lands in the repo, the clips, or the app.
-25. As the person accepting the voice, I want a fixed listen list printed at the end of a successful run, so that I judge timbre with my ears after the tests pass.
-26. As a later agent, I want the listen list treated as a human gate, so that I do not declare the voice acceptable because the AAC decodes.
+8. As a learner, I want *né* to keep a long *é*, so that vowel length is still audible.
+9. As a learner, I want a line played as one phrase, so that I hear the words join instead of a list of dictionary entries.
+10. As a learner, I want a question line to finish as a question, so that *man cenuva fána cirya?* does not run into the silence as a statement blob.
+11. As a learner, I want a comma in a line to be a short pause, so that the phrasing of the poem survives synthesis.
+12. As a learner, I want play to work with the device offline, so that study does not depend on a network at the moment I tap.
+13. As a learner, I want the same play buttons and the same presence rule (a button only when a clip exists), so that the Reader does not change shape.
+14. As a learner on Android, I want existing playback to decode the new clips, so that I do not take a player change to hear them.
+15. As a learner on iOS, I want the same, so that the shared AAC clips still play.
+16. As the person regenerating audio, I want one command and no account, key, or region, so that a data regen can be followed by an audio regen.
+17. As the person regenerating audio, I want a Python that is not the shared virtual environment to stop immediately and name `source` of that environment, and a missing Piper install there to name `pip install piper-tts`, so that I do not discover the gap at clip 80.
+18. As the person regenerating audio, I want a missing voice file to be fetched into the shared voice directory before any clip is touched, and a failed fetch to stop with the download command, so that a half-written library is not how I learn the voice is absent. Both worktrees share that directory, so the download happens once.
+19. As the person regenerating audio, I want a failed run to leave the previous clips and the previous manifest in place, so that a bad voice or a bad phone does not wipe a working library.
+20. As the person regenerating audio, I want an unchanged clip left untouched, so that a second run does not rebuild speech I already committed.
+21. As the person regenerating audio, I want a changed pronunciation, voice, or pace to rebuild only the clips whose request changed, so that the cache tracks the utterance rather than the filename.
+22. As the person regenerating audio, I want one probe to succeed before the corpus starts, so that a phone the voice cannot speak fails once, not on clip 80.
+23. As the person regenerating audio, I want a word the phonetics module cannot transcribe to fail the run and be reported, so that a gap stays visible.
+24. As the person regenerating audio, I want the app-facing manifest to keep today's keys (surface-form key for words, phrase id for lines), so that the app keeps finding clips.
+25. As the person regenerating audio, I want no speech secret anywhere in the run, so that there is nothing to leak into the repo, the clips, or the app.
+26. As the person regenerating audio, I want to point the run at another catalog voice with `QUENYA_PIPER_VOICE`, so that I can listen to Cori medium, Jenny Dioco, or Alba without a code change.
+27. As the person regenerating audio, I want the pace to default to a length scale of 1.15, and to `QUENYA_PIPER_LENGTH` when I set it, so that words and lines share one unhurried tempo.
+28. As the person regenerating audio, I want a dry run to print the listen-list utterances and do nothing else, so that I can read the pronunciation before a model loads.
+29. As the person accepting the voice, I want a fixed listen list printed at the end of a successful run, so that I judge timbre with my ears after the tests pass.
+30. As a later agent, I want the listen list treated as a human gate, so that I do not declare the voice acceptable because the AAC decodes.
 
 ## Implementation Decisions
 
 ### Seam
 
-One new pure adapter sits between the phonetics module and the network. Input: the phoneme string the phonetics module already returns, plus the original spelling for the visible word, plus whether the clip is a word or a line. Output: one SSML document. Tests hit that output. The speech client is the only component that sends bytes to Azure. Playback, the app-facing manifest shape, and the phonetics module's stress rules stay as they are.
+One pure adapter sits between the phonetics module and Piper. Input: the phoneme string the phonetics module already returns, plus the original spelling when the clip is a line so punctuation can be seen. Output: one Piper utterance. Tests hit that string. The speech client is the only component that loads the ONNX model. Playback, the app-facing manifest shape, and the phonetics module's stress rules stay as they are.
 
-A line is split on whitespace before phonemicization. Each word is phonemicized alone, then the words are wrapped as sibling `phoneme` elements inside one `speak`. The phonetics module currently drops spaces, so a line fed through it whole becomes one run-on string. The adapter must not do that.
+A line is split on whitespace before phonemicization. Each word is phonemicized alone. The phonetics module drops spaces, so a line fed through it whole becomes one run-on string with one stress mark. The adapter must not do that.
+
+### What Piper is given
+
+Piper's `[[ ... ]]` block is raw phoneme characters. Each character inside the brackets is one phoneme id. Piper does not run its text frontend on that span. A character missing from the loaded voice's phoneme map is skipped by Piper with a log line. This generator treats a missing character as a failed run and names the character, so a clip cannot be silently short a phone.
+
+The English voices were trained on espeak IPA (`ɑ`, `ɛ`, `ɪ`, `ˈ`, `ː`, and the rest of that inventory). The phonetics module's string is a different alphabet: ASCII letters, an apostrophe for stress, a colon for length. That ASCII string is not a Piper utterance. `[[ear'endil]]` would be looked up as the ASCII phones, including the apostrophe, and would not be the stress and vowels the voice learned.
+
+The period character is the punctuation phone this model learned at the ends of sentences. A dot between syllables is that same character. Syllable dots are not emitted. Stress is the character `ˈ`, placed before the onset of the stressed syllable.
+
+Syllables, so the stress mark lands on the vowel the phonetics module chose:
+
+- Consonants before the first vowel open the first syllable.
+- Between two vowels, the last consonant opens the next syllable. Any consonants before it close the current syllable. That is what keeps *cirya* as kir-ya and *Eärendil* stressed on *-ren-* once the *r* has moved to the onset.
+- Consonants after the last vowel close the last syllable.
+- The cluster that made a penult heavy still counts for the stress decision already made by the phonetics module. Moving the second consonant into the next onset does not move which vowel is stressed.
+
+### Phone map
+
+| eSpeak piece | Piper characters | Why |
+|---|---|---|
+| `a` / `a:` | `ɑ` / `ɑː` | Open vowel, short and long. |
+| `e` / `e:` | `ɛ` / `ɛː` | *é* keeps its length. Collapsing it was an Azure phone-set limit. |
+| `i` / `i:` | `ɪ` / `iː` | |
+| `o` / `o:` | `ɒ` / `ɔː` | Short *o* is LOT. It is not the diphthong `əʊ`. |
+| `u` / `u:` | `ʊ` / `uː` | |
+| `ai` `au` `oi` `ui` `eu` `iu` | `aɪ` `aʊ` `ɔɪ` `ʊɪ` `ɛʊ` `ɪʊ` | Two characters each. Piper's bracket splitter does not join multi-character diphthong keys. |
+| `r` | `ɹ` | This voice learned the English approximant. |
+| `p t k b d g f v s h m n l w j` | themselves | Includes `j` for *y* and for the palatal digraphs the phonetics module already emits. `qu` arrives as `k` then `w`. |
+| stress `'` | `ˈ` before the stressed syllable's onset | One mark. The vowel it covers is the vowel the phonetics module marked. |
+
+Word clip: one block, statement mark inside the brackets.
+
+| Spelling | Utterance |
+|---|---|
+| cirya | `[[ˈkɪɹjɑ.]]` |
+| Eärendil | `[[ɛɑˈɹɛndɪl.]]` |
+| andúnë | `[[ɑnˈduːnɛ.]]` |
+| ancalima | `[[ɑnˈkɑlɪmɑ.]]` |
+| né | `[[ˈnɛː.]]` |
+
+Line clip: one block. Words separated by a space. A comma, semicolon, or colon on a word becomes a comma character and a space before the next word. A final `.`, `?`, or `!` is that character at the end of the block. A line with no final mark ends in `.`. There is no millisecond break and no silence spliced into the wav. Piper's pause is the punctuation phone it was trained on.
 
 ### Engine
 
-- Service: Azure Speech text-to-speech, SSML `POST` to the regional `cognitiveservices/v1` endpoint.
-- Auth headers: subscription key and the required user-agent. Output format: a PCM wav the existing AAC encode step already accepts. Container and bitrate stay whatever the generator writes today.
-- Required environment: `SPEECH_KEY`, `SPEECH_REGION`.
-- Optional environment: `QUENYA_SPEECH_VOICE`. Unset means `en-GB-Ada:DragonHDLatestNeural`.
-- `speak` carries `xml:lang="en-GB"`. One `voice`. One `prosody` with `rate="85%"` around the whole utterance, words and lines alike. The word/line difference is isolation versus joining, not two rates.
-- Each word is `<phoneme alphabet="ipa" ph="...">spelling</phoneme>`. The `ph` value is the pronunciation. The element text is the Quenya spelling, XML-escaped, for the service's alignment only.
-- A comma, semicolon, or colon in the source line becomes a `break` of 200 ms between phoneme elements. A final `.`, `?`, or `!` becomes a `break` of 400 ms after the last word. Other punctuation stays stripped and adds no break.
-- Word clips are a single phoneme element and no break.
-
-### IPA, restricted to the en-GB phone set
-
-Azure returns HTTP 400 for a phone outside the voice locale's set. The en-GB set has no cardinal Quenya vowels and no trill. The map below is the approved compromise. Phones are IPA characters, not ASCII lookalikes: primary stress is `ˈ`, length is `ː`.
-
-| eSpeak piece | IPA | Why |
-|---|---|---|
-| `a` | `ɑ` | Short open vowel. Not in the published en-GB table. See the probe. |
-| `a:` | `ɑː` | Legal long open vowel. |
-| `e` | `ɛ` | Dress. Legal. |
-| `e:` | `ɛ` | No legal `eː`. Length of *é* collapses. |
-| `i` | `ɪ` | Kit. No legal short cardinal `i`. |
-| `i:` | `iː` | Legal. |
-| `o` | `ɒ` | Lot. No legal short cardinal `o`. Do not use the diphthong `əʊ`. |
-| `o:` | `ɔː` | Legal long mid-back. |
-| `u` | `ʊ` | Foot. No legal short cardinal `u`. |
-| `u:` | `uː` | Legal. |
-| `ai` | `aɪ` | Legal diphthong. |
-| `au` | `aʊ` | Legal diphthong. |
-| `oi` | `ɔɪ` | Legal diphthong. |
-| `ui` | `ʊɪ` | Two legal phones. |
-| `eu` | `ɛʊ` | Two legal phones. |
-| `iu` | `ɪʊ` | Two legal phones. |
-| `r` | `ɹ` | The en-GB rhotic. Quenya's trill is not in the set. |
-| every other consonant the phonetics module emits (`p t k b d g f v s h m n l w j`, including the `j` it already uses for `y` and for palatal digraphs) | itself | Already legal, including `h`+`w` and `k`+`w`. |
-
-Stress: the phonetics module marks exactly one segment with `'`. Move that mark to a syllable-initial `ˈ`.
-
-Syllables: maximal onset. Put `.` between syllables. Attach the stress mark to the start of the stressed syllable, before its onset. Syllable dots must not move which vowel the phonetics module stressed. Consonant clusters that made a penult heavy stay in the stress decision even when the second consonant becomes the next onset. *Eärendil* is still stressed on *-ren-* when written `ɛ.ɑ.ˈɹɛn.dɪl`.
-
-Fixtures the adapter must produce exactly:
-
-| Spelling | `ph` |
-|---|---|
-| cirya | `ˈkɪɹ.jɑ` |
-| Eärendil | `ɛ.ɑ.ˈɹɛn.dɪl` |
-| andúnë | `ɑn.ˈduː.nɛ` |
-| ancalima | `ɑn.ˈkɑ.lɪ.mɑ` |
-
-Probe, before any corpus request: synthesize *cirya* with this map. A 200 and a non-empty wav means the short `ɑ` is accepted; continue. A 400 whose body points at an illegal phone means both short `a` and long `á` become `ɑː`, the four fixtures lose the `a`/`á` length contrast, and the probe is repeated once. A second failure stops the run. No other phone is substituted.
-
-`r` stays `ɹ` even if a trill would be nicer. A 400 on `ɹ` stops the run rather than guessing another rhotic.
+- Package: `piper-tts` (OHF-Voice piper1-gpl). One `PiperVoice` loaded for the whole run. The CLI reloads the model per process; 123 clips share the loaded model.
+- Default voice name: `en_GB-cori-high`. Override: `QUENYA_PIPER_VOICE`.
+- Pace: `SynthesisConfig.length_scale` of `1.15` for words and lines. `1.0` is the voice's own pace; above 1 is slower. Override: `QUENYA_PIPER_LENGTH`.
+- Python for every run, including the dry run and the unit tests, is the shared virtual environment `claudeslop/.venv-piper`. It sits outside both worktrees. `piper-tts` is installed there once. A run whose interpreter is not that environment stops and prints `source` of its `bin/activate`.
+- Voice files: the `.onnx` and its `.onnx.json`, in `claudeslop/.piper-voices`, also outside both worktrees. Override: `PIPER_VOICES_DIR`. Absent files are downloaded with `python -m piper.download_voices <name> --data-dir <that directory>` before the library is touched. A file that is already present and non-empty is not downloaded again. The ONNX file is not committed. Piper is GPL-3.0 and stays a build tool. The app ships AAC only.
+- Output of Piper is a PCM wav at the rate in the voice JSON. The existing ffmpeg AAC step stays: 32 kbps `.m4a`. The sample rate is not hardcoded.
+- Other single-speaker female catalog names a later listen may try: `en_GB-jenny_dioco-medium`, `en_GB-alba-medium`. `en_GB-vctk-medium` and `en_GB-semaine-medium` are not defaults. VCTK is 109 numbered speakers. Semaine is four acted characters.
 
 ### Library behavior
 
 - Inventory stays the generator's current one: every unique token surface in the phrase file, and every phrase line.
-- Filename rule stays content-hash of the lookup key, word clips and line clips distinguished as they are now.
-- Cache record is generator-local. It stores, per lookup key, the hash of voice name, rate, output format, and the exact SSML. The app never reads it. A matching hash skips synthesis. A different hash replaces that clip.
-- The app-facing manifest still has only the word map and the line map. Write it after every requested clip is present. A failure writes neither a partial manifest nor a partial deletion of the previous set.
-- Check key and region, then run the probe, then touch the library. Verify each new wav decodes before replacing the previous AAC for that key.
+- Filename rule stays: content hash of the lookup key, word clips and line clips distinguished as they are now.
+- Cache record stays inside the worktree that owns the clips, in gitignored `tools/.piper`. It does not live next to the shared voice files, so one worktree cannot skip synthesis on the strength of the other worktree's record. It stores, per filename, the voice name, the length scale, and the exact utterance. The app never reads it. A matching record whose clip is present skips synthesis. A different record replaces that clip.
+- The app-facing manifest still has only the word map and the line map. Write it after every requested clip is present. A failure writes neither a partial manifest nor a deletion of the previous set. New wavs are encoded beside the library and replace a clip only after ffmpeg can read them. A phonetics error is reported before any download and before any clip is replaced.
+- Check ffmpeg and the Piper install, resolve the voice, load it, then probe, then touch the library. The probe checks that every character inside the four fixture utterances *cirya*, *Eärendil*, *andúnë*, and *ancalima* is in the loaded phoneme map, and that the space, comma, period, question mark, and exclamation mark are too. It then synthesizes *cirya* and confirms the wav decodes. A miss stops the run and names the character or the voice.
 - A phonetics rejection is still a failed run with the offending spelling listed. No silent omission.
 
 ### What the agent runs
 
-Stdlib unit tests for the adapter. No new test framework. No Gradle run for this change, because the app and the player are untouched. A full generation against Azure is a manual command the human runs after the key is in the environment. The agent does not invent a key.
+Stdlib unit tests for the adapter. No new test framework. No Gradle run for this change, because the app and the player are untouched. A full generation is a manual command the human runs. It downloads about 114 MB on first use. The agent does not need a network to prove the utterances.
 
 ## Testing Decisions
 
-A good test asserts the SSML and the IPA string. It does not open a socket, does not snapshot a waveform, and does not listen. Neural audio is not sample-stable; the committed clips are the reproducible artifact.
+A good test asserts the utterance string. It does not load ONNX, does not snapshot a waveform, and does not listen. Neural audio is not sample-stable. The committed clips are the reproducible artifact, and they stay the previous eSpeak set until a human runs generation and listens.
 
 Test the adapter, at the seam above:
 
-- The four fixture spellings produce the four `ph` values.
-- A two-word line produces one `speak`, one `voice` (the default name when none is passed), one `prosody` at `85%`, and two `phoneme` elements in order, with a space-separated utterance and no `break`.
-- A line ending in `?` has a 400 ms break after the last phoneme and nowhere else.
-- A comma between words has a 200 ms break between those phoneme elements.
-- Spellings that contain `&`, `<`, or `>` appear escaped in the element text and do not appear raw inside `ph`.
-- The stress vowel of each fixture is the vowel the phonetics module marks, read back from the `ˈ` position.
-- Passing an explicit voice name puts that name on the `voice` element.
+- The five spellings in the table produce those five utterances.
+- A two-word line with no punctuation is one block, the two words separated by a single space, ending in `.`
+- A comma between words is a comma character plus a space, and no other pause mark. A semicolon or a colon in that position is the same comma-and-space.
+- A line ending in `?` ends in `?` and contains no `.`
+- The stressed vowel of each fixture is the vowel the phonetics module marks, read back from the vowel that follows `ˈ` once its onset consonants are skipped. *né* reads back as `ɛː`.
 
-Prior art: the phonetics module has a manual `__main__` check and no test suite. The core module's Kotlin tests are the wrong seam; they do not generate audio. New tests live beside the adapter and run with Python's standard library.
+Prior art: the phonetics module has a manual check and no test suite. The core module's Kotlin tests do not generate audio. New tests live beside the adapter and run with Python's standard library.
 
-Done for the agent means: those tests pass, a generation dry of the network can still print the SSML for the listen list, and the runbook at the bottom of this spec is accurate. Done for the voice means the human has heard the listen list. The agent stops before that gate and says so.
+Done for the agent means those tests pass, and a dry run prints the listen-list utterances without importing Piper or writing clips. Done for the voice means the human has heard the listen list. The agent stops before that gate and says so.
 
-Listen list, printed as file paths at the end of a real generation:
+Listen list, printed as utterances by the dry run and as file paths at the end of a real generation:
 
 - cirya
 - Eärendil
@@ -147,37 +151,33 @@ Listen list, printed as file paths at the end of a real generation:
 
 - Any change to playback, the play buttons, or the app-facing manifest fields.
 - On-device synthesis.
-- A local neural vocoder (Piper, Kokoro, Matcha).
-- ElevenLabs, OpenAI, or any engine that pronounces Quenya from spelling.
+- Azure, ElevenLabs, OpenAI, or any cloud engine. No speech key, no region, no token.
+- Kokoro, Matcha, or a voice trained for Quenya.
+- Letting Piper's text frontend see Quenya spelling.
 - A recorded human session.
-- Cloning a performer's voice, including Liv Tyler, or conditioning on film audio.
-- Geminate length (`ll`, `nn`) beyond the doubled consonant the phonetics module already emits.
+- Cloning a performer's voice, or conditioning on film audio.
+- Geminate length beyond the doubled consonant the phonetics module already emits.
 - Reinterpreting `hl` / `hr` as voiceless liquids. They stay `h` plus `l` or `r`, then `h` plus `ɹ`.
-- Teaching Azure the tengwar or the Quenya alphabet. Orthography is display text inside `phoneme`.
-- Editing `BACKLOG.md` item 7's history. A one-line pointer from the README's audio step to this spec is in scope, because that step still tells the next agent to install eSpeak as the synthesizer.
+- Editing the backlog entry that records the original eSpeak decision.
+- Committing the ONNX file, or declaring Cori acceptable because a wav decodes. Cori is a neural British woman. She is the voice to listen to. She is not a substitute claim for a studio recording.
 
 ## Further Notes
 
-eSpeak remains the phoneme alphabet the phonetics module speaks. It stops being the waveform. Removing the `espeak-ng` binary from the regen instructions is correct once nothing shells out to it. `ffmpeg` stays.
+eSpeak remains the phoneme alphabet the phonetics module emits. It stops being the waveform once this generator is what runs. Until a human regenerates the library, the clips in the app are still that formant set. ffmpeg stays.
 
-The collapsed sounds are deliberate, caused by the en-GB phone set: short and long *e* match, *r* is an English approximant, short *i* / *o* / *u* are the lax English vowels, short *a* depends on the probe. A later voice locale with cardinal vowels can replace the map without a player change. That locale is not this spec.
+The English approximant for *r*, and the lax English vowels for short *i*, *o*, and *u*, are deliberate. They are the phones this voice can actually say. A trill is in the phoneme map and was not what the model learned.
 
-Rejected alternatives, so they are not rebuilt as improvements: local phoneme-to-neural (pleasant, not this timbre, and a training-data problem), a single human recording (the quality ceiling once the lines stop changing), on-device models (worth it only when the learner types arbitrary Quenya).
-
-The speech key is a user secret. The spec does not name a file to put it in. The generator reads the process environment.
+Rejected so they are not rebuilt as improvements: a cloud HD voice, spelling-driven TTS, on-device models, and a celebrity clone.
 
 ## Runbook
 
-From `claudeslop/quenya-app`:
+From the app directory, after this spec is implemented:
 
 ```bash
+source /Users/devilliers.neethling/code/persoonlik/Quenya/claudeslop/.venv-piper/bin/activate
 python -m unittest discover -s tools -p 'test_*.py'
-python tools/generate_audio.py --dry-ssml
-SPEECH_KEY=... SPEECH_REGION=... python tools/generate_audio.py
+python tools/generate_audio.py --dry-utterance
+python tools/generate_audio.py
 ```
 
-`--dry-ssml` prints the listen-list SSML and does not read the key, contact Azure, or write clips. A real run requires `SPEECH_KEY` and `SPEECH_REGION`. Set `QUENYA_SPEECH_VOICE` only to replace the default; the approved fallback is `en-GB-AdaMultilingualNeural`. `ffmpeg` stays a requirement. `espeak-ng` is not.
-
-After a real run the command prints the listen-list paths and stops. Hearing them is the human's step. A voice-not-found response names `QUENYA_SPEECH_VOICE` and the fallback voice.
-
-When this generator no longer shells out to eSpeak, the README regen step should point here and drop `espeak-ng` from the install list.
+`piper-tts` is already installed in that environment. If the import fails, `pip install piper-tts` while the environment is active. `--dry-utterance` prints the listen-list utterances. It does not import Piper, read a model, or write clips. A real run uses `en_GB-cori-high` unless `QUENYA_PIPER_VOICE` is set, length scale `1.15` unless `QUENYA_PIPER_LENGTH` is set, and voice files in `claudeslop/.piper-voices` unless `PIPER_VOICES_DIR` is set. ffmpeg stays a requirement. The generator does not shell out to `espeak-ng`.

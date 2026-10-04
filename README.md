@@ -52,14 +52,19 @@ androidApp/       Android application module (AGP 9 needs the app separate from 
 ## Regenerate the data
 
 ```bash
+source /Users/devilliers.neethling/code/persoonlik/Quenya/claudeslop/.venv-piper/bin/activate
 curl -L -o tools/eldamo-data.xml https://raw.githubusercontent.com/pfstrack/eldamo/master/src/data/eldamo-data.xml
 python tools/build_data.py tools/eldamo-data.xml    # writes composeApp/.../composeResources/files/*.json
 python tools/make_kotlin_fixtures.py                # refresh the test fixtures from the new data
-python tools/generate_audio.py                      # synthesizes Reader audio clips (needs espeak-ng, ffmpeg)
+python tools/generate_audio.py                      # synthesizes Reader audio clips (needs ffmpeg; piper-tts is in the venv)
 ```
-Reader audio is still eSpeak. The neural replacement is specified in [docs/specs/neural-reader-audio.md](docs/specs/neural-reader-audio.md).
-`espeak-ng` and `ffmpeg` (`brew install espeak-ng ffmpeg` on macOS) are only needed for the audio step —
-everything else is pure Python. `tools/skeleton.json` is the only hand-edited input besides the Quenya
+Python for this repo runs in that virtual environment. It lives outside both worktrees, and `piper-tts` is installed there once.
+Voice models download to `claudeslop/.piper-voices` (override with `PIPER_VOICES_DIR`), which is also outside either worktree, so the download happens once.
+The clips in the app are still the eSpeak formant set until that command is run and a person listens.
+The generator is specified in [docs/specs/neural-reader-audio.md](docs/specs/neural-reader-audio.md).
+`ffmpeg` (`brew install ffmpeg` on macOS) is only needed for the audio step.
+The generator does not shell out to `espeak-ng`.
+Everything else is pure Python. `tools/skeleton.json` is the only hand-edited input besides the Quenya
 phoneme/stress rules in `tools/quenya_phonetics.py` (Appendix E conventions; Eldamo's own phonetic data
 turned out to be historical sound-change records, not a synchronic pronunciation table — see BACKLOG
 item 7). Neither holds lesson content.
