@@ -105,4 +105,14 @@ class StudyTest {
         assertEquals(2, store.streak().count)
         assertEquals(firstDay + 1, store.streak().lastDay)
     }
+
+    @Test fun readerShowsElenSilaBeforeItIsUnlocked() = runSuspend {
+        val store = InMemoryReviewStore()
+        val engine = StudyEngine(course, store) { 0L }
+        assertEquals(listOf("elen-sila"), engine.unlockedPhrases().map { it.id })
+        repeat(12) { engine.finishSession() }
+        val ids = engine.unlockedPhrases().map { it.id }
+        assertEquals(listOf("elen-sila"), ids.filter { it == "elen-sila" })
+        assertTrue("aiya-earendil" !in ids)
+    }
 }

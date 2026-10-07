@@ -58,8 +58,16 @@ class StudyEngine(
 
     suspend fun dueCount(): Int = store.cards().count { it.value.dueMs <= nowMs() }
 
-    suspend fun unlockedPhrases(): List<Phrase> =
-        planner.unlockedPhrases(store.completedSessions()).mapNotNull { course.phraseById[it] }
+    /** Reader list. The first reading line is always included; later lines wait for their session.
+     *  Production still uses [Planner.unlockedPhrases], so early sessions do not drill this line. */
+    suspend fun unlockedPhrases(): List<Phrase> {
+        val ids = planner.unlockedPhrases(store.completedSessions())
+        val first = course.curriculum.firstNotNullOfOrNull { s ->
+            s.slots.firstOrNull { it.kind == "reading" }?.phrases?.firstOrNull()
+        }
+        val shown = if (first == null || first in ids) ids else listOf(first) + ids
+        return shown.mapNotNull { course.phraseById[it] }
+    }
 
     /** Pure function of (n, seed, course, frozen review ids) — the only non-deterministic input to
      *  a session is which cards are due, so freezing that list lets a resume reproduce byte-for-byte
