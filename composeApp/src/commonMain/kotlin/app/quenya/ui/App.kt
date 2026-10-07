@@ -11,7 +11,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import app.cash.sqldelight.db.SqlDriver
 import app.quenya.core.*
@@ -107,7 +111,21 @@ private fun Root(m: AppModel, backHandler: @Composable (Boolean, () -> Unit) -> 
 private fun HomeScreen(m: AppModel, onStart: () -> Unit, onResume: () -> Unit) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Eäsis", style = MaterialTheme.typography.headlineLarge)
-        Text("Quenya self-study app", style = MaterialTheme.typography.titleSmall)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Elvish as She is Spoke.", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "Late Quenya from Eldamo. About 15 minutes: the reviews that are due, then the new lesson, then exercises.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                buildAnnotatedString {
+                    append("The aim is the first 12 lines of ")
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append("Markirya") }
+                    append(".")
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
         val s = m.nextSession
         if (s == null) Text("Course complete.")
         else {
