@@ -87,4 +87,22 @@ class StudyTest {
         now += 3 * day; engine.finishSession()
         assertEquals(1, store.streak().count)                      // gap: reset
     }
+
+    @Test fun streakUsesLocalDayAcrossTheUtcBoundary() = runSuspend {
+        val offset = 2 * 3_600_000L                                // UTC+2, no DST
+        val utcMidnight = 1_800_000_000_000L / day * day
+        var now = utcMidnight - 3_600_000L                         // 23:00 UTC = 01:00 local
+        val store = InMemoryReviewStore()
+        val engine = StudyEngine(course, store, utcOffsetMs = { offset }) { now }
+        engine.finishSession()
+        val firstDay = store.streak().lastDay
+        now += 3_600_000L                                          // 00:00 UTC, still the same local day
+        engine.finishSession()
+        assertEquals(1, store.streak().count)
+        assertEquals(firstDay, store.streak().lastDay)
+        now += day
+        engine.finishSession()
+        assertEquals(2, store.streak().count)
+        assertEquals(firstDay + 1, store.streak().lastDay)
+    }
 }

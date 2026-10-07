@@ -50,6 +50,7 @@ class StudyEngine(
     private val store: ReviewStore,
     private val scheduler: FsrsScheduler = FsrsScheduler(),
     private val maxReviews: Int = 12,
+    private val utcOffsetMs: () -> Long = { 0L },
     private val nowMs: () -> Long,
 ) {
     private val planner = Planner(course)
@@ -126,7 +127,7 @@ class StudyEngine(
             .forEach { store.saveCard(it, FsrsCard(dueMs = nowMs())) }
         store.setCompletedSessions(n)
         store.clearInProgressSession()
-        val today = nowMs() / FsrsScheduler.DAY_MS
+        val today = (nowMs() + utcOffsetMs()) / FsrsScheduler.DAY_MS
         val s = store.streak()
         store.setStreak(when {
             s.lastDay == today -> s

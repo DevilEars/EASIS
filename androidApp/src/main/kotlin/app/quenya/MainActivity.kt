@@ -8,6 +8,7 @@ import app.quenya.ui.AndroidAudioPlayer
 import app.quenya.ui.AndroidThemePreference
 import app.quenya.ui.App
 import app.quenya.ui.androidSqlDriver
+import java.util.TimeZone
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -16,7 +17,9 @@ class MainActivity : ComponentActivity() {
         val audioPlayer = AndroidAudioPlayer(applicationContext)
         val themePreference = AndroidThemePreference(applicationContext)
         setContent {
-            App(driver, { System.currentTimeMillis() }, audioPlayer, themePreference) { enabled, onBack ->
+            App(driver, { System.currentTimeMillis() }, audioPlayer, themePreference, utcOffsetMs = {
+                TimeZone.getDefault().getOffset(System.currentTimeMillis()).toLong()
+            }) { enabled, onBack ->
                 BackHandler(enabled, onBack)
             }
         }
