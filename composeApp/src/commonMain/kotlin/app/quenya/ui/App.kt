@@ -37,6 +37,7 @@ fun App(
     nowMs: () -> Long,
     audioPlayer: AudioPlayer,
     themePreference: ThemePreference,
+    utcOffsetMs: () -> Long = { 0L },
     backHandler: @Composable (enabled: Boolean, onBack: () -> Unit) -> Unit = { _, _ -> },
 ) {
     var model by remember { mutableStateOf<AppModel?>(null) }
@@ -45,7 +46,7 @@ fun App(
         try {
             val (course, meta) = loadAssets()
             val store = SqlReviewStore(driver)
-            val m = AppModel(course, StudyEngine(course, store, nowMs = nowMs), store, DataLoader.about(meta), audioPlayer, themePreference)
+            val m = AppModel(course, StudyEngine(course, store, utcOffsetMs = utcOffsetMs, nowMs = nowMs), store, DataLoader.about(meta), audioPlayer, themePreference)
             m.refresh()
             model = m
         } catch (t: Throwable) {
@@ -201,7 +202,7 @@ private fun ColumnScope.LessonView(s: SessionStep.LessonStep, course: CourseData
             }
         }
         TextButton({ full = !full }) { Text(if (full) "Hide full entry" else "Read full entry") }
-        if (full) s.lesson.body.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+        if (full) s.lesson.body.forEach { Text(it) }
         Text(s.lesson.source, style = MaterialTheme.typography.labelSmall)
     }
     Button(onNext) { Text("Continue") }

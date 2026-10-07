@@ -9,8 +9,7 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 21 }
       - uses: gradle/actions/setup-gradle@v4
-        with: { gradle-version: current }
-      - run: gradle :core:jvmTest :androidApp:assembleDebug
+      - run: ./gradlew :core:jvmTest :androidApp:assembleDebug
 
   ios-compile:                       # rule 1: the iOS target must always compile
     runs-on: macos-latest
@@ -19,8 +18,7 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: 21 }
       - uses: gradle/actions/setup-gradle@v4
-        with: { gradle-version: current }
-      - run: gradle :core:compileKotlinIosSimulatorArm64 :composeApp:compileKotlinIosSimulatorArm64
+      - run: ./gradlew :core:compileKotlinIosSimulatorArm64 :composeApp:compileKotlinIosSimulatorArm64
 
   reference-data:                    # FSRS reference traces must be reproducible from py-fsrs
     runs-on: ubuntu-latest

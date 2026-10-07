@@ -147,13 +147,13 @@ translation pass could add `af`, tagged as machine-translated and reviewable in 
 ## 11. Smaller items
 - iOS: add the Xcode wrapper project that calls `MainViewController()`.
 - Install and run on a physical handset. Emulator playback is already confirmed.
-- Run the GitHub Actions workflow. It exists and has not been executed on a hosted runner. It calls bare `gradle` rather than `./gradlew`.
+- Run the GitHub Actions workflow on a hosted runner. It calls `./gradlew`. It has not been executed on a hosted runner.
 - Read the "Decomposition" notes of phrase entries to improve token analysis.
-- Lesson summaries end on a colon in 9 of 18 lessons: pronunciation, ablative, active-participle, allative, genitive, infinitive, instrumental, locative, present. `summarize()` stops at the next paragraph once it has about 200 characters, and those Eldamo leads close by introducing an example. Extend the cut so a summary does not end on a colon, then regenerate.
-- Streak uses UTC days (`nowMs() / DAY_MS` in `Study.finishSession`); switch to local time.
+- Lesson summaries that ended on a colon. — done. `summarize()` drops the sentence that only introduces the next example, and `check()` rejects a summary that still ends on `:`.
+- Streak day is local. — done. `finishSession` adds `utcOffsetMs` (from the platform clock) to `nowMs` before dividing by `DAY_MS`. Review intervals stay absolute milliseconds.
 - Optional: FSRS interval fuzzing and parameter fitting from your own review history.
 - Consonant gemination (`ll`, `nn`, …) is a doubled consonant in `tools/quenya_phonetics.py`. Model true length if a listen shows the simplification matters.
 - Custom Elvish-themed launcher icon. — done, `a48db63`.
 - Reader screen: visual indicator (fade/arrow) showing there's more content below the fold.
-- Lesson "Read full entry": the body uses `bodySmall`, so the full Eldamo entry is smaller than the summary above it. Use the summary's font.
+- Lesson "Read full entry" font. — done. The body uses the same default style as the summary.
 - More than one learner. Review state is a single SQLDelight store; there is no profile switch.

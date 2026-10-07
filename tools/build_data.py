@@ -59,7 +59,8 @@ STOP_LABELS = re.compile(r"^(Origins?|Conceptual Development|Historical|Developm
 
 def summarize(paras, lo=200, hi=700):
     """Lead of an Eldamo grammar entry: skip a leading table-of-contents bullet list,
-    take paragraphs until ~lo chars, never run into 'Origins'/'Conceptual Development'."""
+    take paragraphs until ~lo chars, never run into 'Origins'/'Conceptual Development'.
+    A lead that only introduces the next example ends on ':'; drop that sentence."""
     i = 0
     while i < len(paras) and paras[i].startswith("•") and len(paras[i]) < 80:
         i += 1
@@ -72,7 +73,16 @@ def summarize(paras, lo=200, hi=700):
     if len(out) > hi:
         cut = max(out.rfind(". ", 0, hi), out.rfind("? ", 0, hi))
         out = out[: cut + 1] if cut > 200 else out[:hi].rstrip() + "…"
+    s = out.rstrip()
+    if s.endswith(":"):
+        cut = max(s.rfind(". "), s.rfind("? "), s.rfind("! "), s.rfind(".\n"), s.rfind("?\n"), s.rfind("!\n"))
+        out = s[:cut + 1] if cut != -1 else s[:-1].rstrip()
     return out
+
+
+def _check_summarize():
+    assert summarize(["The genitive uses -o. Tolkien said:"]) == "The genitive uses -o."
+    assert not summarize(["Already fine."]).endswith(":")
 
 # ------------------------------------------------------------------- load
 def load(path):
@@ -361,6 +371,8 @@ def check(lex, forms, phrases, lessons, sessions):
             if slot["kind"] != "lesson": continue
             if slot["lesson"] not in lessons: P.append(f"session {s['n']}: missing lesson")
             elif not lessons[slot["lesson"]]["summary"].strip(): P.append(f"empty lesson {slot['lesson']}")
+            elif lessons[slot["lesson"]]["summary"].rstrip().endswith(":"):
+                P.append(f"summary ends on a colon: {slot['lesson']}")
     # every resolved lemma used by a reading must be introduced no later than that reading
     pos = {}
     for s in sessions:
@@ -392,4 +404,5 @@ def report(version, lex, forms, phrases, tstats, sessions, problems):
     print("PROBLEMS:", problems or "none")
 
 if __name__ == "__main__":
+    _check_summarize()
     main()
