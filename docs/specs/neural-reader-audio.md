@@ -156,14 +156,12 @@ Listen list, printed as utterances by the dry run and as file paths at the end o
 - Letting Piper's text frontend see Quenya spelling.
 - A recorded human session.
 - Cloning a performer's voice, or conditioning on film audio.
-- Geminate length beyond the doubled consonant the phonetics module already emits.
 - Reinterpreting `hl` / `hr` as voiceless liquids. They stay `h` plus `l` or `r`, then `h` plus `ɹ`.
-- Editing the backlog entry that records the original eSpeak decision.
 - Committing the ONNX file, or declaring Cori acceptable because a wav decodes. Cori is a neural British woman. She is the voice to listen to. She is not a substitute claim for a studio recording.
 
 ## Further Notes
 
-eSpeak remains the phoneme alphabet the phonetics module emits. It stops being the waveform once this generator is what runs. Until a human regenerates the library, the clips in the app are still that formant set. ffmpeg stays.
+eSpeak remains the phoneme alphabet the phonetics module emits. Piper is the waveform. The clips in the app are the Piper AAC set (`en_GB-cori-high`). A geminate consonant is the doubled consonant that module already emits. ffmpeg stays.
 
 The English approximant for *r*, and the lax English vowels for short *i*, *o*, and *u*, are deliberate. They are the phones this voice can actually say. A trill is in the phoneme map and was not what the model learned.
 

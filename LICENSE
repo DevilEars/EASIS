@@ -2,17 +2,4 @@ Eäsis — original code and tooling
 
 Copyright (c) 2026 De Villiers Neethling
 
-This work (the Kotlin/Compose application, curriculum-generation scripts, audio
-pipeline, and other original code and tooling in this repository) is licensed
-under the Creative Commons Attribution-NonCommercial 4.0 International License
-(CC BY-NC 4.0).
-
-To view a copy of this license, visit:
-https://creativecommons.org/licenses/by-nc/4.0/
-
-or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
-
-This license covers this repository's original code and tooling only. See
-README.md ("License") for the Eldamo data (CC BY 4.0, a separate license held
-by its own author) and Tolkien-derived text/vocabulary (ordinary copyright,
-not licensed by this project).
+The licence for this repository is in licence.md.

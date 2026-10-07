@@ -31,8 +31,8 @@ These are guesses. After about 10 real sessions, adjust and regenerate (`python 
 ## 3. Verify the build on a real machine — done
 `gradle :androidApp:assembleDebug` and `gradle :composeApp:compileKotlinIosSimulatorArm64` both succeed
 with the versions already in `gradle/libs.versions.toml` (Kotlin 2.4.10 / AGP 9.1.0 / Compose 1.12.1 /
-SQLDelight 2.3.2). No version changes were needed. Remaining: install/run on an actual device or
-simulator, and add the iOS Xcode wrapper (item 10) so the iOS target can launch.
+SQLDelight 2.3.2). No version changes were needed. Reader audio has been confirmed on an emulator.
+A physical handset, the Xcode wrapper, and a hosted CI run are listed under smaller items.
 
 ## 4. Eldamo marks
 Words carry a raw `mark` (`#`, `†`, `-`, `|`, `*`, `^`). The app shows them unchanged and does not
@@ -117,8 +117,6 @@ Implementation:
 - Inherited item 5's gaps, now mostly moot: the core-12 milestone has zero unresolved/ambiguous
   tokens as of item 5's fix, so audio for that content has clean lemma data to work from. Only
   `ondolissë`/`mornë` (line 32, stretch-only) still can't be transcribed, same as item 5 left it.
-- Follow-ups, not done here: consonant gemination (`ll`, `nn`, …) is simplified rather than modeled
-  as true length; not yet installed/played on a real device or simulator, only desktop `afplay`.
 
 **Follow-up — eSpeak replaced with Piper, done.** The formant voice above was always meant to be
 temporary (see `docs/specs/neural-reader-audio.md`). An Azure neural-voice draft was written and
@@ -148,11 +146,14 @@ translation pass could add `af`, tagged as machine-translated and reviewable in 
 
 ## 11. Smaller items
 - iOS: add the Xcode wrapper project that calls `MainViewController()`.
+- Install and run on a physical handset. Emulator playback is already confirmed.
+- Run the GitHub Actions workflow. It exists and has not been executed on a hosted runner. It calls bare `gradle` rather than `./gradlew`.
 - Read the "Decomposition" notes of phrase entries to improve token analysis.
-- Lesson summaries: spot-check all 18 for sentences cut at a colon (e.g. genitive).
-- Streak uses UTC days; switch to local time.
+- Lesson summaries end on a colon in 9 of 18 lessons: pronunciation, ablative, active-participle, allative, genitive, infinitive, instrumental, locative, present. `summarize()` stops at the next paragraph once it has about 200 characters, and those Eldamo leads close by introducing an example. Extend the cut so a summary does not end on a colon, then regenerate.
+- Streak uses UTC days (`nowMs() / DAY_MS` in `Study.finishSession`); switch to local time.
 - Optional: FSRS interval fuzzing and parameter fitting from your own review history.
-- Custom Elvish-themed launcher icon (currently the default emulator/Compose icon). — done, `a48db63`.
+- Consonant gemination (`ll`, `nn`, …) is a doubled consonant in `tools/quenya_phonetics.py`. Model true length if a listen shows the simplification matters.
+- Custom Elvish-themed launcher icon. — done, `a48db63`.
 - Reader screen: visual indicator (fade/arrow) showing there's more content below the fold.
-- Reader "show full entry" section: body text renders at the same small size as the "show full
-  entry" label instead of matching the top section's font — hardly legible. Fix the font size.
+- Lesson "Read full entry": the body uses `bodySmall`, so the full Eldamo entry is smaller than the summary above it. Use the summary's font.
+- More than one learner. Review state is a single SQLDelight store; there is no profile switch.
