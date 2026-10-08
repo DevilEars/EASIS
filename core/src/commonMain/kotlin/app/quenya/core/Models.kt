@@ -64,6 +64,7 @@ data class Lesson(
     val summary: String,
     val body: List<String> = emptyList(),
     val source: String,
+    val feature: String? = null,    // the grammar feature this lesson teaches; null for foundations
 )
 
 /** Reader audio manifest (tools/generate_audio.py): lookup key -> clip filename under files/audio/. */
@@ -73,20 +74,13 @@ data class AudioManifest(
     val lines: Map<String, String> = emptyMap(),  // phrase id -> filename
 )
 
-@Serializable
-data class Slot(
-    val kind: String,               // lesson | practice | vocab | reading
-    val title: String? = null,
-    val lesson: String? = null,
-    val feature: String? = null,
-    val lemmas: List<String> = emptyList(),
-    val phrases: List<String> = emptyList(),
-)
-
+/** One session teaches one line: its new words and the lessons its grammar needs. */
 @Serializable
 data class Session(
     val n: Int,
-    val slots: List<Slot>,
-    val milestone: String? = null,
-    val stretch: Boolean = false,
+    val phrase: String,             // phrase id of the line this session reads
+    val label: String,              // "Warm-up 1 of 2" | "Line 4 of 37"
+    val verse: Int? = null,         // verse of the goal text; null for warm-ups
+    val lemmas: List<String> = emptyList(),
+    val lessons: List<String> = emptyList(),
 )

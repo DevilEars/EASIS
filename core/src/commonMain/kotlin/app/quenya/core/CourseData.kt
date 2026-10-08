@@ -12,6 +12,7 @@ class CourseData(
     val lex: Map<String, LexiconEntry> = lexicon.associateBy { it.id }
     val phraseById: Map<String, Phrase> = phrases.associateBy { it.id }
     val lessonById: Map<String, Lesson> = lessons.associateBy { it.id }
+    val sessionByPhrase: Map<String, Session> = curriculum.associateBy { it.phrase }
     val formsByFeature: Map<String, List<FormEntry>> =
         forms.flatMap { f -> f.features.map { it to f } }.groupBy({ it.first }, { it.second })
     val formsByKey: Map<String, List<FormEntry>> = forms.groupBy { Norm.skey(it.surface) }

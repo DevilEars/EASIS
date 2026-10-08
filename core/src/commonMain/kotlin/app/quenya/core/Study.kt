@@ -14,6 +14,10 @@ interface ReviewStore {
     suspend fun inProgressSession(): InProgressSession?
     suspend fun saveInProgressSession(s: InProgressSession)
     suspend fun clearInProgressSession()
+    suspend fun courseVersion(): String?
+    suspend fun setCourseVersion(v: String)
+    /** Forget all progress: cards, completed sessions, streak, in-progress session. Keeps the course version. */
+    suspend fun clearAll()
 }
 
 data class Streak(val count: Int = 0, val lastDay: Long = -1L)
@@ -32,13 +36,18 @@ class InMemoryReviewStore : ReviewStore {
     override suspend fun inProgressSession() = inProgress
     override suspend fun saveInProgressSession(s: InProgressSession) { inProgress = s }
     override suspend fun clearInProgressSession() { inProgress = null }
+    private var version: String? = null
+    override suspend fun courseVersion() = version
+    override suspend fun setCourseVersion(v: String) { version = v }
+    override suspend fun clearAll() { map.clear(); done = 0; streak = Streak(); inProgress = null }
 }
 
 /** One screen in a study session. */
 sealed interface SessionStep {
     data class Review(val lemma: LexiconEntry, val example: Pair<Phrase, Token>?) : SessionStep
-    data class LessonStep(val lesson: Lesson, val feature: String?, val examples: List<FormEntry>) : SessionStep
+    data class LineIntro(val session: Session, val phrase: Phrase) : SessionStep
     data class Intro(val lemmas: List<LexiconEntry>) : SessionStep
+    data class LessonStep(val lesson: Lesson, val examples: List<FormEntry>) : SessionStep
     data class Reading(val phrases: List<Phrase>) : SessionStep
     data class Choice(val exercise: ChoiceExercise) : SessionStep
     data class Typed(val exercise: TypedExercise, val phrase: Phrase) : SessionStep
@@ -58,13 +67,10 @@ class StudyEngine(
 
     suspend fun dueCount(): Int = store.cards().count { it.value.dueMs <= nowMs() }
 
-    /** Reader list. The first reading line is always included; later lines wait for their session.
-     *  Production still uses [Planner.unlockedPhrases], so early sessions do not drill this line. */
+    /** Reader list: lines of completed sessions, and always the first session's line. */
     suspend fun unlockedPhrases(): List<Phrase> {
         val ids = planner.unlockedPhrases(store.completedSessions())
-        val first = course.curriculum.firstNotNullOfOrNull { s ->
-            s.slots.firstOrNull { it.kind == "reading" }?.phrases?.firstOrNull()
-        }
+        val first = course.curriculum.firstOrNull()?.phrase
         val shown = if (first == null || first in ids) ids else listOf(first) + ids
         return shown.mapNotNull { course.phraseById[it] }
     }
@@ -73,33 +79,41 @@ class StudyEngine(
      *  a session is which cards are due, so freezing that list lets a resume reproduce byte-for-byte
      *  the same steps even if the live due-card set has since changed. */
     private fun assembleSteps(n: Int, seed: Long, reviewLemmaIds: List<String>): List<SessionStep> {
-        val plan = planner.plan(n, seed)
         val steps = mutableListOf<SessionStep>()
         reviewLemmaIds.forEach { id ->
             course.lex[id]?.let { steps += SessionStep.Review(it, course.exampleFor(id)) }
         }
-        plan.lesson?.let { l ->
-            val ex = plan.lessonFeature?.let { f ->
-                course.formsByFeature[f].orEmpty().filter { it.clean }.sortedByDescending { course.lex[it.lemma]?.attestations ?: 0 }
-                    .distinctBy { it.lemma }.take(6)
-            }.orEmpty()
-            steps += SessionStep.LessonStep(l, plan.lessonFeature, ex)
-        }
+        if (n > sessionCount) return steps                     // after the course: reviews only
+        val plan = planner.plan(n, seed)
+        steps += SessionStep.LineIntro(plan.session, plan.line)
         if (plan.introLemmas.isNotEmpty()) steps += SessionStep.Intro(plan.introLemmas)
-        if (plan.readingPhrases.isNotEmpty()) steps += SessionStep.Reading(plan.readingPhrases)
+        val known = planner.knownLemmas(n)
+        plan.lessons.forEach { steps += SessionStep.LessonStep(it, lessonExamples(it, plan.line, known)) }
+        steps += SessionStep.Reading(listOf(plan.line))
         plan.exercises.forEach { steps += SessionStep.Choice(it) }
         plan.production.forEach { steps += SessionStep.Typed(it, course.phraseById.getValue(it.phraseId)) }
         return steps
     }
 
-    /** Steps for the next session: reviews, new material, exercises, production. Persists an
-     *  in-progress marker immediately, so even being killed before the first answer is resumable. */
+    /** The line's own tokens with the feature first, then attested forms of known words, then others. */
+    private fun lessonExamples(lesson: Lesson, line: Phrase, known: Set<String>): List<FormEntry> {
+        val feature = lesson.feature ?: return emptyList()
+        val source = line.variants.firstOrNull()?.source ?: line.id
+        val fromLine = line.tokens.filter { feature in it.features && it.lemma != null }
+            .map { FormEntry(it.lemma!!, it.text, it.features, source, clean = true) }
+        val attested = course.formsByFeature[feature].orEmpty().filter { it.clean }
+            .sortedWith(compareByDescending<FormEntry> { it.lemma in known }.thenByDescending { course.lex[it.lemma]?.attestations ?: 0 })
+        return (fromLine + attested).distinctBy { Norm.skey(it.surface) }.take(6)
+    }
+
+    /** Steps for the next session: reviews, then the next line. After the last line, reviews only;
+     *  empty when nothing is due. Persists an in-progress marker so the session is resumable. */
     suspend fun buildSteps(seed: Long): List<SessionStep> {
         val n = store.completedSessions() + 1
-        if (n > sessionCount) return emptyList()
         val now = nowMs()
         val reviewIds = store.cards().entries.filter { it.value.dueMs <= now }.sortedBy { it.value.dueMs }
             .take(maxReviews).map { it.key }
+        if (n > sessionCount && reviewIds.isEmpty()) return emptyList()
         val steps = assembleSteps(n, seed, reviewIds)
         store.saveInProgressSession(InProgressSession(n, seed, 0, reviewIds))
         return steps
@@ -126,14 +140,16 @@ class StudyEngine(
         store.saveCard(lemmaId, scheduler.review(card, rating, nowMs()))
     }
 
-    /** Mark the session done: create cards for newly taught words and update the streak. */
+    /** Mark the session done: create cards for newly taught words and update the streak.
+     *  A reviews-only session (after the last line) only updates the streak. */
     suspend fun finishSession() {
         val n = store.completedSessions() + 1
-        if (n > sessionCount) return
-        val existing = store.cards()
-        course.curriculum[n - 1].slots.flatMap { it.lemmas }.filter { it !in existing }
-            .forEach { store.saveCard(it, FsrsCard(dueMs = nowMs())) }
-        store.setCompletedSessions(n)
+        if (n <= sessionCount) {
+            val existing = store.cards()
+            course.curriculum[n - 1].lemmas.filter { it !in existing }
+                .forEach { store.saveCard(it, FsrsCard(dueMs = nowMs())) }
+            store.setCompletedSessions(n)
+        }
         store.clearInProgressSession()
         val today = (nowMs() + utcOffsetMs()) / FsrsScheduler.DAY_MS
         val s = store.streak()
@@ -142,5 +158,16 @@ class StudyEngine(
             s.lastDay == today - 1 -> Streak(s.count + 1, today)
             else -> Streak(1, today)
         })
+    }
+
+    /** Retake: start the course over with no history. */
+    suspend fun resetAll() = store.clearAll()
+
+    /** Progress belongs to one curriculum. When the bundled course changes, start over. */
+    suspend fun syncCourseVersion(version: String): Boolean {
+        if (store.courseVersion() == version) return false
+        store.clearAll()
+        store.setCourseVersion(version)
+        return true
     }
 }

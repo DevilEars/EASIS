@@ -4,7 +4,7 @@ Reader clips are AAC files built on the machine that generates the course data a
 
 The voice is Piper `en_GB-cori-high` at length scale 1.15. A word is one utterance. A line is one utterance in the same voice, with that module's stress, a comma where the line has a comma, semicolon, or colon, and `.`, `?`, or `!` at the end.
 
-The library shipped with the current `phrases.json` is 84 word clips and 39 line clips, 773.4 KiB. A later regeneration prints its own counts.
+The library shipped with the current data is 126 word clips and 39 line clips, 979.2 KiB. A later regeneration prints its own counts.
 
 ## Playback
 
@@ -16,9 +16,11 @@ Android writes the bytes to `reader_clip.m4a` in the cache directory and plays t
 
 ## Inventory and filenames
 
-The generator reads `phrases.json` from its output directory. The default is `composeApp/src/commonMain/composeResources/files`.
+The generator reads `phrases.json`, `curriculum.json`, and `lexicon.json` from its output directory. The default is `composeApp/src/commonMain/composeResources/files`.
 
 Each word clip is the first token text for a `skey`. `skey` matches `tools/build_data.py` and `Norm.skey`: NFC, lower case, superscripts and punctuation removed, `k` folded to `c`, accents kept. The filename is the first 10 hex characters of the SHA-1 of that key, plus `.m4a`.
+
+Every lemma in `curriculum.json` also gets a word clip for its headword, under the headword's `skey`, unless a token already has that key.
 
 Each line clip is one phrase. The filename is `l_` plus the first 10 hex characters of the SHA-1 of the phrase id, plus `.m4a`.
 

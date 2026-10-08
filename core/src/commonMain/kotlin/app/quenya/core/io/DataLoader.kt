@@ -28,4 +28,8 @@ object DataLoader {
         return o.getValue("attribution").jsonPrimitive.content +
             "\nEldamo data version " + o.getValue("eldamo_version").jsonPrimitive.content
     }
+
+    /** Hash of curriculum.json written by build_data.py; progress resets when it changes. */
+    fun courseVersion(meta: String): String =
+        json.parseToJsonElement(meta).jsonObject.getValue("course_version").jsonPrimitive.content
 }

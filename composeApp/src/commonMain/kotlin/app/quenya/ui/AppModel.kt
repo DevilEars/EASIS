@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.quenya.core.*
 
-enum class Screen { Home, Study, Done, Reader, About }
+enum class Screen { Home, Study, Done, Reader, Markirya, About }
 
 /** Thin UI state holder; all rules live in StudyEngine (tested in :core). */
 class AppModel(
@@ -27,6 +27,20 @@ class AppModel(
     var index by mutableStateOf(0); private set
     var inProgress by mutableStateOf(false); private set
     var unlockedPhrases by mutableStateOf<List<Phrase>>(emptyList()); private set
+    /** The session just finished, or null when it was reviews only. Shown on the Done screen. */
+    var lastFinished by mutableStateOf<Session?>(null); private set
+
+    val courseDone: Boolean get() = completed >= total
+    val linesTotal: Int get() = course.curriculum.count { it.verse != null }
+    val linesRead: Int get() = course.curriculum.take(completed).count { it.verse != null }
+    /** The goal text's lines in order, for the full-poem screen. */
+    val goalPhrases: List<Phrase> get() = course.curriculum.filter { it.verse != null }.mapNotNull { course.phraseById[it.phrase] }
+
+    suspend fun retake() {
+        engine.resetAll()
+        refresh()
+        screen = Screen.Home
+    }
 
     val total: Int get() = engine.sessionCount
     val nextSession: Session? get() = course.curriculum.getOrNull(completed)
@@ -57,6 +71,7 @@ class AppModel(
 
     suspend fun next() {
         if (index + 1 < steps.size) { index++; engine.advance(index); return }
+        lastFinished = steps.firstNotNullOfOrNull { (it as? SessionStep.LineIntro)?.session }
         engine.finishSession()
         refresh()
         screen = Screen.Done

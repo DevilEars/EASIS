@@ -13,30 +13,24 @@ Open work is listed in [BACKLOG.md](BACKLOG.md). This document describes the app
 | Language scope | Late-period Quenya (`l="q"`, 1950–73). |
 | Confidence | An entry is `attested` when Eldamo cites at least one occurrence, otherwise `unverified`. Eldamo's raw `mark` is stored and shown as written. |
 | Audience | Personal use, sideloaded. Every exercise and form carries its Eldamo `source`. |
-| Data | Eldamo XML becomes JSON at build time (`tools/build_data.py`). Lesson prose, the lexicon, and the lesson order are generated. `tools/skeleton.json` is the topic order. `tools/quenya_phonetics.py` is the Appendix E spelling-to-phoneme and stress rules. Neither file holds lesson content. |
+| Data | Eldamo XML becomes JSON at build time (`tools/build_data.py`). Lesson prose, the lexicon, and the lesson order are generated. `tools/skeleton.json` is the table of contents: the texts in order, the verses, and where each lesson attaches. `tools/quenya_phonetics.py` is the Appendix E spelling-to-phoneme and stress rules. Neither file holds lesson content. |
 | Gloss language | English, stored as `{"en": …}`. |
 | Stack | Kotlin Multiplatform + Compose Multiplatform; SQLDelight for review state; kotlinx.serialization for data; FSRS-6 ported from py-fsrs 6.3.2. |
 | Reader | Tap a word for its lexicon entry. Play plays the generated AAC clip when the manifest has one. Clips are built offline with Piper (`en_GB-cori-high`); the phonetics module supplies the pronunciation. See [docs/specs/neural-reader-audio.md](docs/specs/neural-reader-audio.md). |
 | Free practice | Guided production: English prompt, learner types Quenya, checked against the key (headword + attested variants). The checker explains each word against the lexicon and attested forms; it never judges grammar. |
-| Curriculum | Generated backwards from the target texts. Topic order and session sizes come from `tools/skeleton.json`: 2 sessions per core feature, 1 per minor feature, 6 new words per vocabulary session. |
-| Session | 15 min: reviews → new material → exercises → production. |
+| Curriculum | One session per line, generated from `tools/skeleton.json`: the warm-ups *Elen síla* and *Aiyá Eärendil*, then *Markirya* lines 1–37. A session teaches its line's new words and the grammar its tokens use for the first time. See [docs/specs/text-first-course.md](docs/specs/text-first-course.md). |
+| Session | Reviews → the session's line → new words → grammar → read the line → questions → write it yourself. After the last line, reviews only. |
 | Learner | One learner. Review state is one SQLDelight store on the device. |
 
 ## Attribution (required)
 
 Eldamo is credited on the About screen. The licence split is in [licence.md](licence.md).
 
-## Milestones (generated; see `build_data.py` output)
+## Course (generated; see `build_data.py` output)
 
-| Milestone | Text | Session | Cumulative grammar features | Cumulative words taught |
-|---|---|---|---|---|
-| `elen-sila` | *elen síla lúmenn' omentielvo* | **13** | 4 | 4 |
-| `aiya-earendil` | *aiya Eärendil elenion ancalima* | **18** | 6 | 7 |
-| `markirya-12` | *Markirya*, lines 1–12 | **35** | 12 | 32 |
-| `markirya-full` | *Markirya*, all 37 lines (stretch) | 49 | 14 | 74 |
-
-The course is 49 sessions: 18 lessons, 10 practice, 14 vocabulary, 7 reading. *Markirya* lines 1–12
-land at session 35, inside the 40-session target.
+39 sessions: 2 warm-ups, then *Markirya* lines 1–37 in five verses (lines 1–5, 6–13, 14–22, 23–30,
+31–37). 76 words and 18 lessons: 4 foundations and 14 grammar features. Line 32 (*ondolissë mornë*)
+has no word analysis in Eldamo and teaches no words.
 
 ### Correction to an earlier analysis
 An early coverage report said `markirya-12` needed 11 features and 28 words and would land at sessions

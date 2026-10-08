@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate Reader audio clips with local Piper, then AAC.
 
-Pipeline: Quenya spelling -> tools/quenya_phonetics.py -> tools/piper_utterance.py
+Pipeline: phrase tokens and taught headwords -> tools/quenya_phonetics.py -> tools/piper_utterance.py
 -> piper-tts -> AAC -> composeApp/.../composeResources/files/audio/*.m4a + audio.json.
 
 Usage, from the shared virtual environment:
@@ -116,7 +116,10 @@ def require_piper():
 
 
 def inventory(files_dir):
+    """Word clips: each token's text, then each taught lemma's headword. Line clips: each phrase."""
     phrases = json.loads((files_dir / "phrases.json").read_text(encoding="utf-8"))
+    lexicon = {e["id"]: e for e in json.loads((files_dir / "lexicon.json").read_text(encoding="utf-8"))}
+    curriculum = json.loads((files_dir / "curriculum.json").read_text(encoding="utf-8"))
     words, lines = {}, {}
     for phrase in phrases:
         for token in phrase["tokens"]:
@@ -124,6 +127,12 @@ def inventory(files_dir):
             if key and key not in words:
                 words[key] = token["text"]
         lines[phrase["id"]] = phrase["text"]
+    for session in curriculum:
+        for lemma_id in session["lemmas"]:
+            headword = lexicon[lemma_id]["lemma"]
+            key = skey(headword)
+            if key and key not in words:
+                words[key] = headword
     return words, lines
 
 

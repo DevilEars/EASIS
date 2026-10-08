@@ -2,6 +2,10 @@
 
 Ordered roughly by how much each item could change the plan.
 
+## Text-first course — done
+[docs/specs/text-first-course.md](docs/specs/text-first-course.md): one session per line, Retake,
+the full poem after the last line, accent buttons for typing, and review audio with headword clips.
+
 ## 1. Measure noun-class dependence of the endings  *(requested)* — done, no plan change
 `tools/eldamo_report.py` now has a `noun_class_report` (BACKLOG item 4 in its own docstring) that
 groups every attested case/plural ending by the lemma's stem class (vocalic vs which consonant).
@@ -25,8 +29,9 @@ lemmas, so a plural-practice session draws from both patterns' pools without any
 **No curriculum restructuring needed** — `skeleton.json` and the 49-session plan stand as-is.
 
 ## 2. Calibrate the session model with real learning
-`tools/skeleton.json` assumes 2 sessions per core feature, 1 per minor feature, 6 new words per session.
-These are guesses. After about 10 real sessions, adjust and regenerate (`python tools/build_data.py`).
+One line per session is a guess: some lines add one word and no grammar. After about 10 real
+sessions, decide whether short lines should share a session, then change `build_curriculum` and
+regenerate (`python tools/build_data.py`).
 
 ## 3. Verify the build on a real machine — done
 `gradle :androidApp:assembleDebug` and `gradle :composeApp:compileKotlinIosSimulatorArm64` both succeed
