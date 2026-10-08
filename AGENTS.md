@@ -41,3 +41,6 @@ Commit messages are the user's own words alone — no `Co-Authored-By`, "Generat
 AI self-attribution trailer. A `commit-msg` hook enforces this; if a commit is rejected, strip the
 trailer and recommit rather than bypassing the hook. One-time setup per clone:
 `git config core.hooksPath .githooks`.
+
+Never write personal or machine-specific details into tracked files: no absolute paths, user or
+folder names, device models, serials, or IP addresses — use repo-relative paths and placeholders.
