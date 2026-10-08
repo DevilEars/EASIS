@@ -21,37 +21,43 @@ internal fun PlayButton(audioPlayer: AudioPlayer, filename: String?, label: Stri
     TextButton({ scope.launch { audioPlayer.play(Res.readBytes("files/audio/$filename")) } }) { Text("▶ $label") }
 }
 
-/** Lines under headings: warm-ups first, then each verse of the goal text. */
-internal fun LazyListScope.versedLines(phrases: List<Phrase>, course: CourseData, audioPlayer: AudioPlayer) {
+/** The one open word card in a list of lines: which line, and which word in it. */
+internal class WordSelection {
+    var selected by mutableStateOf<Pair<String, Int>?>(null)
+}
+
+/** Lines under headings: warm-ups first, then each verse of the goal text. One word card is open
+ *  across all of them. */
+internal fun LazyListScope.versedLines(phrases: List<Phrase>, course: CourseData, audioPlayer: AudioPlayer, selection: WordSelection) {
     val groups = phrases.groupBy { course.sessionByPhrase[it.id]?.verse }
     groups[null]?.let { warmups ->
         item(key = "h-warmups") { Text("Warm-ups", style = MaterialTheme.typography.titleMedium) }
-        items(warmups, key = { it.id }) { PhraseView(it, course, audioPlayer) }
+        items(warmups, key = { it.id }) { PhraseView(it, course, audioPlayer, selection) }
     }
     groups.keys.filterNotNull().sorted().forEach { v ->
         item(key = "h-verse-$v") { Text("Verse $v", style = MaterialTheme.typography.titleMedium) }
-        items(groups.getValue(v), key = { it.id }) { PhraseView(it, course, audioPlayer) }
+        items(groups.getValue(v), key = { it.id }) { PhraseView(it, course, audioPlayer, selection) }
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun PhraseView(p: Phrase, course: CourseData, audioPlayer: AudioPlayer) {
-    var sel by remember(p.id) { mutableStateOf<Token?>(null) }
+internal fun PhraseView(p: Phrase, course: CourseData, audioPlayer: AudioPlayer, selection: WordSelection = remember { WordSelection() }) {
+    val sel = selection.selected?.takeIf { it.first == p.id }?.second
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            p.tokens.forEach { t ->
+            p.tokens.forEachIndexed { i, t ->
                 Text(
                     t.text + t.punct,
                     style = MaterialTheme.typography.titleMedium,
-                    color = if (sel == t) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.clickable { sel = t }.padding(vertical = 4.dp),
+                    color = if (sel == i) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.clickable { selection.selected = p.id to i }.padding(vertical = 4.dp),
                 )
             }
         }
         Text("“${p.gloss}”", style = MaterialTheme.typography.bodyMedium)
         PlayButton(audioPlayer, course.audioForLine(p.id), "Play line")
-        sel?.let { TokenDetail(it, course, audioPlayer) }
+        sel?.let { TokenDetail(p.tokens[it], course, audioPlayer) }
         p.note?.let { Text(it, style = MaterialTheme.typography.labelSmall) }
     }
 }

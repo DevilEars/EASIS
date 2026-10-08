@@ -100,7 +100,7 @@ The session header shows the label beside the progress bar.
 
 **Reader tab:** the unlocked lines (lines whose session is complete, plus the first warm-up line). Warm-ups first, then *Markirya* grouped by verse.
 
-**Line view** (Reader, Read the line, full *Markirya*): the line, its English, and one **▶ Play line** button. The words are tappable text, not buttons. Tapping a word opens a card under the line with its lemma, gloss, and form, and **▶ Play word** when that word has a clip. One card is open per line; tapping another word replaces it.
+**Line view** (Reader, Read the line, full *Markirya*): the line, its English, and one **▶ Play line** button. The words are tappable text, not buttons. Tapping a word opens a card under the line with its lemma, gloss, and form, and **▶ Play word** when that word has a clip. One card is open at a time on a screen; tapping another word, in any line, replaces it.
 
 **Retake course** asks "Start over? This clears all progress." and, on confirm, resets as below and returns to Home.
 

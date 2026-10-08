@@ -353,18 +353,20 @@ private fun DoneScreen(m: AppModel) {
 
 @Composable
 private fun ReaderScreen(course: CourseData, unlockedPhrases: List<Phrase>, audioPlayer: AudioPlayer) {
+    val selection = remember { WordSelection() }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { Text("Reader", style = MaterialTheme.typography.headlineMedium) }
         item { Text("Lines appear here as you finish their sessions. Tap a word for its meaning and form.", style = MaterialTheme.typography.bodySmall) }
-        versedLines(unlockedPhrases, course, audioPlayer)
+        versedLines(unlockedPhrases, course, audioPlayer, selection)
     }
 }
 
 @Composable
 private fun MarkiryaScreen(course: CourseData, phrases: List<Phrase>, audioPlayer: AudioPlayer) {
+    val selection = remember { WordSelection() }
     LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { Text("Markirya", style = MaterialTheme.typography.headlineMedium) }
-        versedLines(phrases, course, audioPlayer)
+        versedLines(phrases, course, audioPlayer, selection)
     }
 }
 
