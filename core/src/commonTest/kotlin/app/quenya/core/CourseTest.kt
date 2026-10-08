@@ -21,14 +21,79 @@ class CourseTest {
         assertEquals(1, Norm.editDistance("elen", "eleni"))
     }
 
-    @Test fun everySessionPlansAndHasContent() {
-        for (n in 1..planner.sessionCount) {
-            val p = planner.plan(n, seed = 7)
-            for (slot in p.session.slots) when (slot.kind) {
-                "lesson" -> assertTrue(p.lesson != null && p.lesson.summary.isNotBlank(), "session $n lesson")
-                "vocab" -> assertTrue(slot.lemmas.all { id -> p.introLemmas.any { it.id == id } }, "session $n lemmas missing")
-                "reading" -> assertTrue(p.readingPhrases.isNotEmpty(), "session $n phrases")
+    @Test fun checkerAcceptsEveryCanonicalPhrase() {
+        for (p in course.phrases) {
+            val typed = p.tokens.joinToString(" ") { it.text }
+            assertEquals(Verdict.EXACT, checker.check(typed, p).verdict, p.id)
+            assertEquals(Verdict.EXACT, checker.check(typed.uppercase(), p).verdict, "${p.id} uppercase")
+        }
+    }
+
+    @Test fun checkerHandlesAccentsAndVariants() {
+        val sila = course.phraseById.getValue("elen-sila")
+        assertEquals(Verdict.EXACT, checker.check("elen si\u0301la lu\u0301menn' omentielvo", sila).verdict)
+        val noAccents = checker.check("elen sila lumenn omentielvo", sila)
+        assertEquals(Verdict.ACCENTS_DIFFER, noAccents.verdict)
+        assertTrue(noAccents.correct && noAccents.notes.isNotEmpty())
+        val variant = sila.variants.first { Norm.words(it.text).map(Norm::skey) != sila.tokens.map { t -> Norm.skey(t.text) } }
+        assertEquals(Verdict.ATTESTED_VARIANT, checker.check(variant.text, sila).verdict)
+    }
+
+    @Test fun checkerExplainsWrongForm() {
+        val aiya = course.phraseById.getValue("aiya-earendil")
+        val r = checker.check("aiya Eärendil eleni ancalima", aiya)
+        assertEquals(Verdict.INCORRECT, r.verdict)
+        assertFalse(r.correct)
+        val note = r.notes.first { it.typed == "eleni" }.message
+        assertTrue("plural" in note && "wrong form" in note, note)
+        assertTrue(checker.check("aiya", aiya).notes.any { "words" in it.message })
+        assertTrue(checker.check("aiya Eärendil xyzzy ancalima", aiya).notes.any { "isn't in the lexicon" in it.message })
+    }
+
+    @Test fun sessionsReadTheTextsInOrder() {
+        val expected = listOf("elen-sila", "aiya-earendil") + (1..37).map { "markirya-" + it.toString().padStart(2, '0') }
+        assertEquals(expected, course.curriculum.map { it.phrase })
+        assertEquals("Warm-up 1 of 2", course.curriculum[0].label)
+        assertEquals("Line 4 of 37", course.curriculum[5].label)
+        assertEquals(listOf(null, null, 1, 1, 1, 1, 1, 2), course.curriculum.take(8).map { it.verse })
+        assertEquals(5, course.curriculum.last().verse)
+    }
+
+    @Test fun planMatchesTheSession() {
+        for (s in course.curriculum) {
+            val p = planner.plan(s.n, seed = 7)
+            assertEquals(s.phrase, p.line.id, "session ${s.n}")
+            assertEquals(s.lemmas, p.introLemmas.map { it.id }, "session ${s.n} words")
+            assertEquals(s.lessons, p.lessons.map { it.id }, "session ${s.n} lessons")
+            assertTrue(p.lessons.all { it.summary.isNotBlank() }, "session ${s.n} empty lesson")
+            assertTrue(p.exercises.size >= 2, "session ${s.n}: ${p.exercises.size} questions")
+            assertEquals(s.phrase, p.production.first().phraseId, "session ${s.n} writes its own line first")
+        }
+    }
+
+    @Test fun everyWordAndFeatureIsTaughtByItsLine() {
+        for (s in course.curriculum) {
+            val words = planner.knownLemmas(s.n)
+            val feats = course.curriculum.take(s.n).flatMap { it.lessons }.mapNotNull { course.lessonById[it]?.feature }.toSet()
+            for (t in course.phraseById.getValue(s.phrase).tokens) {
+                t.lemma?.let { assertTrue(it in words, "session ${s.n}: $it read before taught") }
+                t.features.forEach { assertTrue(it in feats, "session ${s.n}: $it used before taught") }
             }
+        }
+    }
+
+    @Test fun questionsOnlyAskAboutWordsAlreadyMet() {
+        for (seed in 1L..3L) for (s in course.curriculum) {
+            val known = planner.knownLemmas(s.n)
+            val unlocked = planner.unlockedPhrases(s.n).toSet()
+            for (e in planner.plan(s.n, seed).exercises) {
+                val parts = e.id.split(":")
+                when (parts[0]) {
+                    "meaning", "form" -> assertTrue(parts[1] in known, "session ${s.n} ${e.id}: unmet word")
+                    "cloze" -> assertTrue(parts[1] in unlocked, "session ${s.n} ${e.id}: locked line")
+                }
+            }
+            for (e in planner.plan(s.n, seed).production) assertTrue(e.phraseId in unlocked, "session ${s.n} ${e.phraseId}")
         }
     }
 
@@ -59,86 +124,30 @@ class CourseTest {
         }
     }
 
-    @Test fun featureSessionsAreFilled() {
-        val short = mutableListOf<String>()
-        for (n in 1..planner.sessionCount) {
-            val p = planner.plan(n, 11)
-            for (slot in p.session.slots) {
-                if ((slot.kind == "lesson" || slot.kind == "practice") && slot.feature != null) {
-                    println("session $n ${slot.kind} ${slot.feature}: ${p.exercises.size} exercises")
-                    if (p.exercises.size < 3) short += "session $n ${slot.feature} (${p.exercises.size})"
-                }
+    @Test fun lineWithoutAnalysisStillHasASession() {
+        val s = course.curriculum.first { it.phrase == "markirya-32" }
+        val p = planner.plan(s.n, 1)
+        assertTrue(p.introLemmas.isEmpty() && p.lessons.isEmpty())
+        assertTrue(p.exercises.isNotEmpty(), "line 32 needs at least one question")
+    }
+
+    @Test fun sessionsAskAboutSixToEightQuestions() {
+        for (seed in 1L..3L) for (n in 1..planner.sessionCount) {
+            val count = planner.plan(n, seed).exercises.size
+            assertTrue(count in 6..9, "session $n asks $count questions")
+        }
+    }
+
+    @Test fun clozeBlanksATaughtWordWhenTheLineHasOne() {
+        for (seed in 1L..3L) for (s in course.curriculum) {
+            val known = planner.knownLemmas(s.n)
+            for (e in planner.plan(s.n, seed).exercises) {
+                if (!e.id.startsWith("cloze:")) continue
+                val (_, pid, i) = e.id.split(":")
+                val tokens = course.phraseById.getValue(pid).tokens
+                if (tokens.none { it.lemma in known }) continue          // line 32: nothing analysed
+                assertTrue(tokens[i.toInt()].lemma in known, "session ${s.n} ${e.id}: blanks an untaught word")
             }
         }
-        println("SHORT feature sessions: $short")
-        assertTrue(short.size <= 3, "too many thin feature sessions: $short")
-    }
-
-    @Test fun checkerAcceptsEveryCanonicalPhrase() {
-        for (p in course.phrases) {
-            val typed = p.tokens.joinToString(" ") { it.text }
-            assertEquals(Verdict.EXACT, checker.check(typed, p).verdict, p.id)
-            assertEquals(Verdict.EXACT, checker.check(typed.uppercase(), p).verdict, "${p.id} uppercase")
-        }
-    }
-
-    @Test fun checkerHandlesAccentsAndVariants() {
-        val sila = course.phraseById.getValue("elen-sila")
-        assertEquals(Verdict.EXACT, checker.check("elen si\u0301la lu\u0301menn' omentielvo", sila).verdict)
-        val noAccents = checker.check("elen sila lumenn omentielvo", sila)
-        assertEquals(Verdict.ACCENTS_DIFFER, noAccents.verdict)
-        assertTrue(noAccents.correct && noAccents.notes.isNotEmpty())
-        val variant = sila.variants.first { Norm.words(it.text).map(Norm::skey) != sila.tokens.map { t -> Norm.skey(t.text) } }
-        assertEquals(Verdict.ATTESTED_VARIANT, checker.check(variant.text, sila).verdict)
-    }
-
-    @Test fun checkerExplainsWrongForm() {
-        val aiya = course.phraseById.getValue("aiya-earendil")
-        val r = checker.check("aiya Eärendil eleni ancalima", aiya)
-        assertEquals(Verdict.INCORRECT, r.verdict)
-        assertFalse(r.correct)
-        val note = r.notes.first { it.typed == "eleni" }.message
-        assertTrue("plural" in note && "wrong form" in note, note)
-        assertTrue(checker.check("aiya", aiya).notes.any { "words" in it.message })
-        assertTrue(checker.check("aiya Eärendil xyzzy ancalima", aiya).notes.any { "isn't in the lexicon" in it.message })
-    }
-
-    @Test fun readingsOnlyUseTaughtVocabulary() {
-        for (s in course.curriculum) for (slot in s.slots) {
-            if (slot.kind != "reading") continue
-            val taught = planner.knownLemmas(s.n).toSet()
-            for (pid in slot.phrases) for (t in course.phraseById.getValue(pid).tokens)
-                t.lemma?.let { assertTrue(it in taught, "session ${s.n}: $it read before taught") }
-        }
-    }
-
-    @Test fun productionOnlyFromUnlockedPhrases() {
-        assertTrue(planner.plan(1, 3).production.isEmpty())
-        for (n in 1..planner.sessionCount) {
-            val unlocked = planner.unlockedPhrases(n).toSet()
-            for (e in planner.plan(n, 3).production) assertTrue(e.phraseId in unlocked, "session $n offers locked phrase ${e.phraseId}")
-        }
-    }
-
-    @Test fun mixedSessionProducesBothKindsOfExercise() {
-        val mixed = course.curriculum.filter { s ->
-            s.slots.any { it.kind == "reading" } && s.slots.any { it.kind != "reading" }
-        }
-        assertTrue(mixed.isNotEmpty(), "expected at least one session with a reading slot attached to other content")
-        for (s in mixed) {
-            val ids = planner.plan(s.n, 1).exercises.map { it.id.substringBefore(':') }
-            assertTrue("cloze" in ids, "session ${s.n}: mixed session dropped its reading-slot exercises")
-            val otherKind = s.slots.first { it.kind != "reading" }.kind
-            val expectedPrefix = if (otherKind == "vocab") "meaning" else "form"
-            assertTrue(expectedPrefix in ids, "session ${s.n}: mixed session dropped its $otherKind-slot exercises")
-        }
-    }
-
-    @Test fun milestonesAreWhereThePipelineSaidAndMarkiryaFitsForty() {
-        val at = course.curriculum.filter { it.milestone != null }.associate { it.milestone!! to it.n }
-        println("milestones: $at")
-        assertEquals(setOf("elen-sila", "aiya-earendil", "markirya-12", "markirya-full"), at.keys)
-        assertTrue(at.getValue("markirya-12") <= 40, "markirya-12 lands at ${at["markirya-12"]}")
-        assertTrue(at.getValue("elen-sila") < at.getValue("aiya-earendil") && at.getValue("aiya-earendil") < at.getValue("markirya-12"))
     }
 }

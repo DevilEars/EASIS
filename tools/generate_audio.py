@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Generate Reader audio clips with local Piper, then AAC.
 
-Pipeline: Quenya spelling -> tools/quenya_phonetics.py -> tools/piper_utterance.py
+Pipeline: phrase tokens and taught headwords -> tools/quenya_phonetics.py -> tools/piper_utterance.py
 -> piper-tts -> AAC -> composeApp/.../composeResources/files/audio/*.m4a + audio.json.
 
 Usage, from the shared virtual environment:
-    source /Users/devilliers.neethling/code/persoonlik/Quenya/claudeslop/.venv-piper/bin/activate
+    source ../.venv-piper/bin/activate
     python tools/generate_audio.py --dry-utterance
     python tools/generate_audio.py [--out DIR]
 
@@ -13,7 +13,7 @@ Requires: that virtual environment (piper-tts installed once), ffmpeg.
 Does not shell out to espeak-ng.
 Voice: en_GB-cori-high unless QUENYA_PIPER_VOICE is set.
 Pace: length scale 1.15 unless QUENYA_PIPER_LENGTH is set.
-Voice files: claudeslop/.piper-voices unless PIPER_VOICES_DIR is set.
+Voice files: ../.piper-voices (beside the repo) unless PIPER_VOICES_DIR is set.
 """
 import argparse
 import hashlib
@@ -31,7 +31,7 @@ from pathlib import Path
 from piper_utterance import line_utterance, word_utterance
 
 ROOT = Path(__file__).resolve().parent.parent
-# Worktrees are siblings under claudeslop/. The venv and the ONNX files live
+# Worktrees are siblings under one parent directory. The venv and the ONNX files live
 # beside those trees, so a second worktree does not install or download again.
 SHARED_ROOT = ROOT.parent
 SHARED_VENV = SHARED_ROOT / ".venv-piper"
@@ -116,7 +116,10 @@ def require_piper():
 
 
 def inventory(files_dir):
+    """Word clips: each token's text, then each taught lemma's headword. Line clips: each phrase."""
     phrases = json.loads((files_dir / "phrases.json").read_text(encoding="utf-8"))
+    lexicon = {e["id"]: e for e in json.loads((files_dir / "lexicon.json").read_text(encoding="utf-8"))}
+    curriculum = json.loads((files_dir / "curriculum.json").read_text(encoding="utf-8"))
     words, lines = {}, {}
     for phrase in phrases:
         for token in phrase["tokens"]:
@@ -124,6 +127,12 @@ def inventory(files_dir):
             if key and key not in words:
                 words[key] = token["text"]
         lines[phrase["id"]] = phrase["text"]
+    for session in curriculum:
+        for lemma_id in session["lemmas"]:
+            headword = lexicon[lemma_id]["lemma"]
+            key = skey(headword)
+            if key and key not in words:
+                words[key] = headword
     return words, lines
 
 

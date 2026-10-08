@@ -4,9 +4,9 @@
 
 Eäsis — "Elvish as She is Spoke" — is a personal Android course in Late Quenya. The lexicon, the
 attested forms, the phrases, the lesson text, and the lesson order are generated from
-[Eldamo](https://eldamo.org), so a lesson teaches what the source attests. A session takes about 15
-minutes: the reviews that are due, then the new material, then exercises. The aim is to read the
-first 12 lines of *Markirya*, tapping a word to see what it means.
+[Eldamo](https://eldamo.org), so a lesson teaches what the source attests. Each session teaches one
+line of a text: its new words and grammar, then you read and hear it. Two short warm-up lines come
+first; the goal is all 37 lines of *Markirya*, tapping a word to see what it means.
 
 ## Install and run
 

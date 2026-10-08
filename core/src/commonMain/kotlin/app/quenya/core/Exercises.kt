@@ -41,12 +41,12 @@ class ExerciseFactory(private val course: CourseData, seed: Long) {
         return s to s.indexOf(correct)
     }
 
-    /** "Which is the <features> of <lemma>?" answered from an attested form. */
-    fun formChoice(feature: String, n: Int): List<ChoiceExercise> {
+    /** "Which is the <features> of <lemma>?" answered from an attested form of a word in [known]. */
+    fun formChoice(feature: String, n: Int, known: Set<String>): List<ChoiceExercise> {
         val pool = course.formsByFeature[feature].orEmpty()
             .filter { it.clean && it.surface.isNotBlank() && usable(it.lemma) != null }
         // Prefer well-attested lemmas, one question per lemma + feature set.
-        val candidates = pool.groupBy { it.lemma to it.features }
+        val candidates = pool.filter { it.lemma in known }.groupBy { it.lemma to it.features }
             .values.map { it.first() }
             .sortedByDescending { course.lex[it.lemma]!!.attestations }
             .take(n * 4).shuffled(rnd)
@@ -72,10 +72,10 @@ class ExerciseFactory(private val course: CourseData, seed: Long) {
         return out
     }
 
-    /** Fill one word of a known phrase. Options are other words from known phrases. */
-    fun cloze(phraseIds: List<String>, n: Int): List<ChoiceExercise> {
-        val phrases = phraseIds.mapNotNull { course.phraseById[it] }.filter { it.tokens.size >= 3 }
-        val words = phraseIds.mapNotNull { course.phraseById[it] }.flatMap { p -> p.tokens.map { it.text } }
+    /** Fill one word of a known phrase. Options are other words from [wordPool]'s phrases. */
+    fun cloze(phraseIds: List<String>, n: Int, wordPool: List<String> = phraseIds): List<ChoiceExercise> {
+        val phrases = phraseIds.mapNotNull { course.phraseById[it] }.filter { it.tokens.size >= 2 }
+        val words = wordPool.mapNotNull { course.phraseById[it] }.flatMap { p -> p.tokens.map { it.text } }
             .distinctBy(Norm::skey)
         val out = mutableListOf<ChoiceExercise>()
         for (p in phrases.shuffled(rnd)) {
@@ -116,10 +116,11 @@ class ExerciseFactory(private val course: CourseData, seed: Long) {
         return out
     }
 
-    /** Guided production: English gloss in, Quenya typed. */
-    fun production(phraseIds: List<String>, n: Int): List<TypedExercise> =
-        phraseIds.mapNotNull { course.phraseById[it] }.filter { it.gloss.isNotBlank() }
-            .shuffled(rnd).take(n).map {
+    /** Guided production: this line from its English, then one earlier line as revision. */
+    fun production(current: String, earlier: List<String>): List<TypedExercise> =
+        (listOf(current) + earlier.shuffled(rnd).take(1))
+            .mapNotNull { course.phraseById[it] }.filter { it.gloss.isNotBlank() }
+            .map {
                 TypedExercise("prod:${it.id}", "Write in Quenya:\n“${it.gloss}”", it.id,
                     it.variants.firstOrNull()?.source ?: it.id)
             }

@@ -9,7 +9,7 @@ Outputs: lexicon.json, forms.json, phrases.json, lessons.json, curriculum.json,
          meta.json  (default dir: composeApp/src/commonMain/composeResources/files)
 Prints a report and exits non-zero if any invariant fails.
 """
-import argparse, html, json, math, re, sys, unicodedata
+import argparse, hashlib, html, json, math, re, sys, unicodedata
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -234,8 +234,7 @@ def feature_info(f, gram_names):
         if x["feature"] == f:
             return x
     guess = f.replace("-", " ")
-    return {"feature": f, "entry": guess if guess in gram_names else None,
-            "rank": 500, "core": True, "auto": True}
+    return {"feature": f, "entry": guess if guess in gram_names else None, "auto": True}
 
 def used_features(phrases):
     return sorted({x for p in phrases for t in p["tokens"] for x in t["features"]})
@@ -243,9 +242,9 @@ def used_features(phrases):
 def build_lessons(words, phrases):
     gram = {w.get("v"): w for w in words if w.get("speech") == "grammar"}
     lessons = {}
-    def from_entry(lid, title, entry):
+    def from_entry(lid, title, entry, feature=None):
         paras = html_to_text(gram[entry].find("notes").text)
-        lessons[lid] = {"id": lid, "title": title, "entry": entry, "generated": False,
+        lessons[lid] = {"id": lid, "title": title, "entry": entry, "generated": False, "feature": feature,
                         "summary": summarize(paras), "body": paras,
                         "source": f"Eldamo grammar entry “{entry}” (CC BY 4.0, Paul Strack)"}
     for f in SKEL["foundations"]:
@@ -254,79 +253,53 @@ def build_lessons(words, phrases):
         lid = "feat-" + f["feature"]
         label = f.get("label") or f["feature"].replace("-", " ").capitalize()
         if f["entry"]:
-            from_entry(lid, label, f["entry"])
+            from_entry(lid, label, f["entry"], f["feature"])
         else:  # no Eldamo entry: describe from the data itself
             t, p = next((t, p) for p in phrases for t in p["tokens"] if f["feature"] in t["features"])
             summ = (f"Eldamo has no grammar entry for “{f['feature']}”. In the text it appears as "
                     f"“{t['text']}” ({t['gloss']}), from “{p['text']}” = “{p['gloss']}”.")
-            lessons[lid] = {"id": lid, "title": label, "entry": None,
+            lessons[lid] = {"id": lid, "title": label, "entry": None, "feature": f["feature"],
                             "generated": True, "summary": summ, "body": [summ],
                             "source": "Generated from Eldamo phrase data"}
     return lessons
 
 # ------------------------------------------------------------- curriculum
-def interleave(a, b):
-    items = [((i + .5) / len(a), 0, x) for i, x in enumerate(a)] + \
-            [((i + .5) / len(b), 1, x) for i, x in enumerate(b)]
-    return [x for _, _, x in sorted(items, key=lambda t: (t[0], t[1]))]
+def course_lines(phrases, skel):
+    """The course's phrases in teaching order: each skeleton text's lines, in line order."""
+    return [p for tid in skel["texts"]
+            for p in sorted((p for p in phrases if p["textId"] == tid), key=lambda p: p["line"])]
 
-def build_curriculum(phrases, gram_names):
-    rank = {x: feature_info(x, gram_names) for x in used_features(phrases)}
-    core_n = SKEL["markirya_core_lines"]
-    by_id = {p["id"]: p for p in phrases}
-    blocks = [("elen-sila", ["elen-sila"], True), ("aiya-earendil", ["aiya-earendil"], True),
-              ("markirya-12", [f"markirya-{i:02d}" for i in range(1, core_n + 1)], True),
-              ("markirya-full", [f"markirya-{i:02d}" for i in range(core_n + 1, 38)], False)]
-    sessions = []
-    def add_session(slots, milestone=None, stretch=False):
-        sessions.append({"n": len(sessions) + 1, "slots": slots, "milestone": milestone, "stretch": stretch})
-    for f in SKEL["foundations"]:
-        add_session([dict(kind="lesson", lesson=f["id"], title=f["entry"].capitalize())])
-    seen_f, seen_l = set(), set()
-    for mid, pids, core in blocks:
-        toks = [t for pid in pids for t in by_id[pid]["tokens"]]
-        feats = sorted({x for t in toks for x in t["features"]} - seen_f, key=lambda x: rank[x]["rank"])
+def build_curriculum(phrases, skel=SKEL):
+    """One session per line. A session teaches the line's new lemmas and the features its tokens
+    use for the first time, plus any foundation lessons attached to that line."""
+    order = {f["feature"]: i for i, f in enumerate(skel["features"])}
+    lines = course_lines(phrases, skel)
+    warmups = [p["id"] for p in lines if p["textId"] != skel["goal"]]
+    goal_count = len(lines) - len(warmups)
+    verse_of = {ln: v for v, (a, b) in enumerate(skel["verses"], 1) for ln in range(a, b + 1)}
+    sessions, seen_l, seen_f = [], set(), set()
+    for n, p in enumerate(lines, 1):
         lemmas = []
-        for t in toks:
+        for t in p["tokens"]:
             if t["lemma"] and t["lemma"] not in seen_l and t["lemma"] not in lemmas:
                 lemmas.append(t["lemma"])
-        seen_f |= set(feats); seen_l |= set(lemmas)
-        gram = []
-        for x in feats:
-            label = rank[x].get("label") or x.replace("-", " ").capitalize()
-            gram.append(dict(kind="lesson", lesson="feat-" + x, feature=x, title=label))
-            reps = SKEL["sessions_per_core_feature"] if rank[x]["core"] else SKEL["sessions_per_minor_feature"]
-            for r in range(1, reps):
-                gram.append(dict(kind="practice", feature=x, title=label + " practice"))
-        w = SKEL["words_per_vocab_session"]
-        vocab = [dict(kind="vocab", lemmas=lemmas[i:i + w], title=f"Words {i // w + 1}")
-                 for i in range(0, len(lemmas), w)]
-        content = interleave(gram, vocab) if gram and vocab else gram + vocab
-
-        # Reading is a slot, attached onto the tail of this block's content sessions, not a
-        # dedicated session of its own — the Reader tab is where reading actually lives now.
-        step = SKEL["reading_lines_per_session"] if mid == "markirya-full" else len(pids)
-        reading_chunks = []
-        for i in range(0, len(pids), step):
-            chunk = pids[i:i + step]
-            last = i + step >= len(pids)
-            reading_chunks.append({"slot": dict(kind="reading", phrases=chunk, title="Reading: " + mid),
-                                    "milestone": mid if last else None, "stretch": not core})
-
-        # Defensive fallback (not expected to fire with current content): if a block ever has more
-        # reading chunks than content sessions to carry them, the overflow becomes its own session
-        # rather than being silently dropped.
-        attach, overflow = reading_chunks[:len(content)], reading_chunks[len(content):]
-        attach_from = len(content) - len(attach)
-        for idx, c in enumerate(content):
-            slots, milestone, stretch = [c], None, False
-            if idx >= attach_from:
-                rc = attach[idx - attach_from]
-                slots.append(rc["slot"]); milestone, stretch = rc["milestone"], rc["stretch"]
-            add_session(slots, milestone=milestone, stretch=stretch)
-        for rc in overflow:
-            add_session([rc["slot"]], milestone=rc["milestone"], stretch=rc["stretch"])
+        feats = sorted({x for t in p["tokens"] for x in t["features"]} - seen_f,
+                       key=lambda x: (order.get(x, len(order)), x))
+        seen_l |= set(lemmas); seen_f |= set(feats)
+        s = {"n": n, "phrase": p["id"]}
+        if p["textId"] == skel["goal"]:
+            s["label"] = f"Line {p['line']} of {goal_count}"
+            s["verse"] = verse_of.get(p["line"])
+        else:
+            s["label"] = f"Warm-up {warmups.index(p['id']) + 1} of {len(warmups)}"
+        s["lemmas"] = lemmas
+        s["lessons"] = [f["id"] for f in skel["foundations"] if f["at"] == p["id"]] + ["feat-" + x for x in feats]
+        sessions.append(s)
     return sessions
+
+def course_version(sessions):
+    blob = json.dumps(sessions, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:12]
 
 # ------------------------------------------------------------------- main
 def main():
@@ -339,7 +312,7 @@ def main():
     forms = build_forms(words, lex)
     phrases, tstats = build_phrases(words, lex, forms)
     lessons = build_lessons(words, phrases)
-    sessions = build_curriculum(phrases, {w.get("v") for w in words if w.get("speech") == "grammar"})
+    sessions = build_curriculum(phrases)
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
     def dump(name, obj):
         (out / name).write_text(json.dumps(obj, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
@@ -350,7 +323,7 @@ def main():
     dump("curriculum.json", sessions)
     dump("meta.json", {"eldamo_version": version, "language": LANG,
                        "attribution": "Data © 2008–2026 Paul Strack, Eldamo (https://eldamo.org), CC BY 4.0.",
-                       "glosses": ["en"]})
+                       "glosses": ["en"], "course_version": course_version(sessions)})
     problems = check(lex, forms, phrases, lessons, sessions)
     report(version, lex, forms, phrases, tstats, sessions, problems)
     sys.exit(1 if problems else 0)
@@ -363,30 +336,39 @@ def check(lex, forms, phrases, lessons, sessions):
                 P.append(f"{p['id']}: lemma {t['lemma']} not in lexicon")
     for f in forms:
         if f["lemma"] not in lex: P.append(f"form of unknown lemma {f['lemma']}")
-    if [s["n"] for s in sessions] != list(range(1, len(sessions) + 1)): P.append("session numbers not contiguous")
-    intro = Counter(l for s in sessions for slot in s["slots"] if slot["kind"] == "vocab" for l in slot["lemmas"])
-    P += [f"lemma introduced twice: {l}" for l, c in intro.items() if c > 1]
-    for s in sessions:
-        for slot in s["slots"]:
-            if slot["kind"] != "lesson": continue
-            if slot["lesson"] not in lessons: P.append(f"session {s['n']}: missing lesson")
-            elif not lessons[slot["lesson"]]["summary"].strip(): P.append(f"empty lesson {slot['lesson']}")
-            elif lessons[slot["lesson"]]["summary"].rstrip().endswith(":"):
-                P.append(f"summary ends on a colon: {slot['lesson']}")
-    # every resolved lemma used by a reading must be introduced no later than that reading
-    pos = {}
-    for s in sessions:
-        for slot in s["slots"]:
-            if slot["kind"] == "vocab":
-                for l in slot["lemmas"]: pos[l] = s["n"]
+    return P + check_curriculum(sessions, phrases, lessons)
+
+def check_curriculum(sessions, phrases, lessons, skel=SKEL):
+    P = []
     by_id = {p["id"]: p for p in phrases}
+    if [s["n"] for s in sessions] != list(range(1, len(sessions) + 1)): P.append("session numbers not contiguous")
+    for tid in skel["texts"]:
+        if not any(p["textId"] == tid for p in phrases): P.append(f"skeleton: text {tid} has no phrases")
+    for f in skel["foundations"]:
+        if f["at"] not in by_id: P.append(f"skeleton: foundation {f['id']} attaches to unknown phrase {f['at']}")
+    listed = {f["feature"] for f in skel["features"]}
+    for x in sorted({x for p in phrases for t in p["tokens"] for x in t["features"]} - listed):
+        P.append(f"skeleton: feature {x} is used but not listed")
+    lemma_at, feat_at = {}, {}
     for s in sessions:
-        for slot in s["slots"]:
-            if slot["kind"] != "reading": continue
-            for pid in slot["phrases"]:
-                for t in by_id[pid]["tokens"]:
-                    if t["lemma"] and pos.get(t["lemma"], 10**9) > s["n"]:
-                        P.append(f"session {s['n']}: reads {t['lemma']} before it is taught")
+        for l in s["lemmas"]:
+            if l in lemma_at: P.append(f"lemma taught twice: {l}")
+            lemma_at.setdefault(l, s["n"])
+        for lid in s["lessons"]:
+            les = lessons.get(lid)
+            if les is None: P.append(f"session {s['n']}: unknown lesson {lid}"); continue
+            if not les["summary"].strip(): P.append(f"empty lesson {lid}")
+            elif les["summary"].rstrip().endswith(":"): P.append(f"summary ends on a colon: {lid}")
+            if les.get("feature"): feat_at.setdefault(les["feature"], s["n"])
+    for s in sessions:
+        p = by_id.get(s["phrase"])
+        if p is None: P.append(f"session {s['n']}: unknown phrase {s['phrase']}"); continue
+        for t in p["tokens"]:
+            if t["lemma"] and lemma_at.get(t["lemma"], 10**9) > s["n"]:
+                P.append(f"session {s['n']}: {t['lemma']} is read before it is taught")
+            for x in t["features"]:
+                if feat_at.get(x, 10**9) > s["n"]:
+                    P.append(f"session {s['n']}: feature {x} is used before it is taught")
     return P
 
 def report(version, lex, forms, phrases, tstats, sessions, problems):
@@ -396,11 +378,10 @@ def report(version, lex, forms, phrases, tstats, sessions, problems):
     print("unresolved tokens:", unres or "none")
     amb = [(p["id"], t["text"]) for p in phrases for t in p["tokens"] if t["resolution"].endswith("ambiguous")]
     print("ambiguous (heuristic) tokens:", len(amb), amb[:8])
-    print(f"curriculum: {len(sessions)} sessions;",
-          dict(Counter(slot['kind'] for s in sessions for slot in s['slots'])))
+    print(f"curriculum: {len(sessions)} sessions, "
+          f"{sum(len(s['lemmas']) for s in sessions)} words, {sum(len(s['lessons']) for s in sessions)} lessons")
     for s in sessions:
-        if s.get("milestone"):
-            print(f"  milestone {s['milestone']} at session {s['n']}")
+        print(f"  {s['n']:2} {s['label']:15} words {s['lemmas']} lessons {s['lessons']}")
     print("PROBLEMS:", problems or "none")
 
 if __name__ == "__main__":

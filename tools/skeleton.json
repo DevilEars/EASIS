@@ -1,30 +1,28 @@
 {
-  "_comment": "Table of contents only. No lesson content is authored here: lesson text comes from Eldamo grammar entries. Edit order/ranks to reorder the course.",
+  "_comment": "Table of contents only. No lesson content is authored here: lesson text comes from Eldamo grammar entries. texts: phrase textIds in course order (one session per line). goal: the text the course works toward; the others are warm-ups. verses: line ranges of the goal text. foundations: lessons attached to the session of phrase `at`. features: teaching order when one session brings several.",
+  "texts": ["elen-sila", "aiya-earendil", "markirya"],
+  "goal": "markirya",
+  "verses": [[1, 5], [6, 13], [14, 22], [23, 30], [31, 37]],
   "foundations": [
-    {"id": "pronunciation", "entry": "pronunciation and transcription"},
-    {"id": "noun-classes",  "entry": "noun classes"},
-    {"id": "article",       "entry": "definite article"},
-    {"id": "word-order",    "entry": "word order"}
+    {"id": "pronunciation", "entry": "pronunciation and transcription", "at": "elen-sila"},
+    {"id": "word-order",    "entry": "word order",                      "at": "elen-sila"},
+    {"id": "noun-classes",  "entry": "noun classes",                    "at": "aiya-earendil"},
+    {"id": "article",       "entry": "definite article",                "at": "markirya-03"}
   ],
   "features": [
-    {"feature": "plural",                "entry": "plural nouns",      "rank": 10,  "core": true,  "label": "Plural"},
-    {"feature": "genitive",              "entry": "genitive",          "rank": 20,  "core": true,  "label": "Genitive"},
-    {"feature": "allative",              "entry": "allative",          "rank": 30,  "core": true,  "label": "Allative"},
-    {"feature": "ablative",              "entry": "ablative",          "rank": 40,  "core": true,  "label": "Ablative"},
-    {"feature": "locative",              "entry": "locative",          "rank": 50,  "core": true,  "label": "Locative"},
-    {"feature": "instrumental",          "entry": "instrumental",      "rank": 60,  "core": true,  "label": "Instrumental"},
-    {"feature": "3rd-sg-poss",           "entry": "possessive",        "rank": 70,  "core": false, "label": "Third person singular possessive"},
-    {"feature": "1st-pl-inclusive-poss", "entry": "possessive",        "rank": 71,  "core": false, "label": "First person plural inclusive possessive"},
-    {"feature": "present",               "entry": "present",           "rank": 80,  "core": true,  "label": "Present"},
-    {"feature": "active-participle",     "entry": "active participle", "rank": 90,  "core": true,  "label": "Active participle"},
-    {"feature": "future",                "entry": "future",            "rank": 100, "core": true,  "label": "Future"},
-    {"feature": "infinitive",            "entry": "infinitive",        "rank": 110, "core": true,  "label": "Infinitive"},
-    {"feature": "elided",                "entry": "elision",           "rank": 120, "core": false, "label": "Elided"},
-    {"feature": "intensive",             "entry": null,                "rank": 130, "core": false, "label": "Intensive"}
-  ],
-  "sessions_per_core_feature": 2,
-  "sessions_per_minor_feature": 1,
-  "words_per_vocab_session": 6,
-  "reading_lines_per_session": 8,
-  "markirya_core_lines": 12
+    {"feature": "plural",                "entry": "plural nouns",      "label": "Plural"},
+    {"feature": "genitive",              "entry": "genitive",          "label": "Genitive"},
+    {"feature": "allative",              "entry": "allative",          "label": "Allative"},
+    {"feature": "ablative",              "entry": "ablative",          "label": "Ablative"},
+    {"feature": "locative",              "entry": "locative",          "label": "Locative"},
+    {"feature": "instrumental",          "entry": "instrumental",      "label": "Instrumental"},
+    {"feature": "3rd-sg-poss",           "entry": "possessive",        "label": "Third person singular possessive"},
+    {"feature": "1st-pl-inclusive-poss", "entry": "possessive",        "label": "First person plural inclusive possessive"},
+    {"feature": "present",               "entry": "present",           "label": "Present"},
+    {"feature": "active-participle",     "entry": "active participle", "label": "Active participle"},
+    {"feature": "future",                "entry": "future",            "label": "Future"},
+    {"feature": "infinitive",            "entry": "infinitive",        "label": "Infinitive"},
+    {"feature": "elided",                "entry": "elision",           "label": "Elided"},
+    {"feature": "intensive",             "entry": null,                "label": "Intensive"}
+  ]
 }

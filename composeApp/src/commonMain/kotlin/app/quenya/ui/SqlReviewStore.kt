@@ -49,4 +49,14 @@ class SqlReviewStore(driver: SqlDriver) : ReviewStore {
     }
 
     override suspend fun clearInProgressSession() { q.deleteMeta("inprogress") }
+
+    override suspend fun courseVersion(): String? = q.getMeta("course_version").executeAsOneOrNull()
+    override suspend fun setCourseVersion(v: String) { q.setMeta("course_version", v) }
+
+    override suspend fun clearAll() {
+        q.transaction {
+            q.deleteAllCards()
+            listOf("completed", "streak", "inprogress").forEach { q.deleteMeta(it) }
+        }
+    }
 }
