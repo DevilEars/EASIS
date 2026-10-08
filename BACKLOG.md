@@ -126,8 +126,8 @@ by Grok on worktree `piper-race` (adapter `tools/piper_utterance.py`, `generate_
 while an independent Claude implementation on worktree `piper-claude` reached the same design (same
 syllabification/stress rule, same `en_GB-cori-high` choice) but lost the race and was kept aside,
 uncommitted, rather than merged. Merged to `main` as `010a3d9` (generator/adapter/tests/spec/README)
-+ `f4e6a75` (the 123 regenerated clips). A shared venv (`claudeslop/.venv-piper`) and voice-model
-cache (`claudeslop/.piper-voices`, env-overridable via `PIPER_VOICES_DIR`) outside both worktrees
++ `f4e6a75` (the 123 regenerated clips). A shared venv (`../.venv-piper`) and voice-model
+cache (`../.piper-voices`, env-overridable via `PIPER_VOICES_DIR`) outside both worktrees
 meant the ~114MB voice model and the `piper-tts` install only happened once between the two agents.
 Clips are now ~1.0 MiB total for the same 123 keys (up from ~520 KiB — `length_scale=1.15` makes
 every clip ~15% longer, plus the neural waveform compresses slightly less than formant synthesis at

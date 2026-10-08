@@ -5,7 +5,7 @@ Pipeline: Quenya spelling -> tools/quenya_phonetics.py -> tools/piper_utterance.
 -> piper-tts -> AAC -> composeApp/.../composeResources/files/audio/*.m4a + audio.json.
 
 Usage, from the shared virtual environment:
-    source /Users/devilliers.neethling/code/persoonlik/Quenya/claudeslop/.venv-piper/bin/activate
+    source ../.venv-piper/bin/activate
     python tools/generate_audio.py --dry-utterance
     python tools/generate_audio.py [--out DIR]
 
@@ -13,7 +13,7 @@ Requires: that virtual environment (piper-tts installed once), ffmpeg.
 Does not shell out to espeak-ng.
 Voice: en_GB-cori-high unless QUENYA_PIPER_VOICE is set.
 Pace: length scale 1.15 unless QUENYA_PIPER_LENGTH is set.
-Voice files: claudeslop/.piper-voices unless PIPER_VOICES_DIR is set.
+Voice files: ../.piper-voices (beside the repo) unless PIPER_VOICES_DIR is set.
 """
 import argparse
 import hashlib
@@ -31,7 +31,7 @@ from pathlib import Path
 from piper_utterance import line_utterance, word_utterance
 
 ROOT = Path(__file__).resolve().parent.parent
-# Worktrees are siblings under claudeslop/. The venv and the ONNX files live
+# Worktrees are siblings under one parent directory. The venv and the ONNX files live
 # beside those trees, so a second worktree does not install or download again.
 SHARED_ROOT = ROOT.parent
 SHARED_VENV = SHARED_ROOT / ".venv-piper"
